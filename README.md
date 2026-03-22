@@ -12,7 +12,7 @@
 ## 🚀 Cách chạy dự án
 ```bash
 # 1. Clone repo
-git clone https://github.com/[username]/recruitment-system.git
+git clone https://github.com/PhamNguyenThanhTung/recruitment-system
 
 # 2. Cài dependencies
 npm install

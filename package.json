@@ -10,9 +10,18 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.100.0",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.0.1",
     "next": "16.2.1",
+    "next-auth": "^5.0.0-beta.25",
+    "prisma": "^5.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -28,6 +37,9 @@
     "typescript": "^5"
   },
   "lint-staged": {
-  "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"]
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }

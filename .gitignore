@@ -4,11 +4,6 @@
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
 /coverage
@@ -23,15 +18,21 @@
 # misc
 .DS_Store
 *.pem
+*.log
+.eslintcache
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (Bảo mật: Không bao giờ đẩy key thật lên Git)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
 # vercel
 .vercel
@@ -40,7 +41,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AI coding assistant config (không push lên git)
-AGENTS.md
-CLAUDE.md
-/lib/generated/prisma
+# VS Code settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Prisma
+/prisma/migrations/
+
+# OS files
+Thumbs.db

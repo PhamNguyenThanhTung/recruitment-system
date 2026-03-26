@@ -1,38 +1,42 @@
+// Cấu hình Prisma Client để tương tác với cơ sở dữ liệu
 generator client {
   provider = "prisma-client-js"
 }
 
+// Cấu hình nguồn dữ liệu, sử dụng PostgreSQL và lấy URL từ biến môi trường
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// Model User: Đại diện cho người dùng (nhân viên HR) trong hệ thống
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("HR")
-  image     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  jobs      Job[]
+  id        String   @id @default(uuid()) // ID duy nhất (UUID)
+  email     String   @unique             // Địa chỉ email duy nhất để đăng nhập
+  password  String                        // Mật khẩu đã được mã hóa
+  name      String                        // Tên người dùng
+  role      String   @default("HR")      // Vai trò (mặc định là HR)
+  image     String?                       // Ảnh đại diện (tùy chọn)
+  createdAt DateTime @default(now()) @map("created_at") // Thời điểm tạo tài khoản
+  jobs      Job[]                         // Danh sách các công việc do người dùng này tạo
 
-  @@map("users")
+  @@map("users") // Tên bảng trong cơ sở dữ liệu là 'users'
 }
 
+// Model Job: Đại diện cho các tin tuyển dụng
 model Job {
-  id           String    @id @default(uuid())
-  title        String
-  company      String
-  description  String
-  requirements String?
-  salary       String?
-  location     String
-  deadline     DateTime?
-  status       String    @default("Draft")
-  userId       String    @map("user_id")
-  user         User      @relation(fields: [userId], references: [id])
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id           String    @id @default(uuid()) // ID duy nhất của tin tuyển dụng
+  title        String                         // Tiêu đề công việc
+  company      String                         // Tên công ty tuyển dụng
+  description  String                         // Mô tả chi tiết công việc
+  requirements String?                        // Yêu cầu công việc (tùy chọn)
+  salary       String?                        // Mức lương (tùy chọn)
+  location     String                         // Địa điểm làm việc
+  deadline     DateTime?                      // Hạn chót nộp hồ sơ (tùy chọn)
+  status       String    @default("Draft")    // Trạng thái tin (Draft, Published, v.v.)
+  userId       String    @map("user_id")      // ID người dùng đã tạo tin này
+  user         User      @relation(fields: [userId], references: [id]) // Quan hệ với model User
+  createdAt    DateTime  @default(now()) @map("created_at") // Thời điểm tạo tin
 
-  @@map("jobs")
+  @@map("jobs") // Tên bảng trong cơ sở dữ liệu là 'jobs'
 }

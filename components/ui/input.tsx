@@ -1,15 +1,24 @@
 import * as React from "react";
 import { cn } from "@/utils/cn";
 
+/**
+ * Interface cho các thuộc tính của component Input.
+ * Kế thừa toàn bộ thuộc tính của thẻ input HTML chuẩn.
+ */
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {}
 
+/**
+ * Component Input: Trường nhập liệu văn bản cơ bản.
+ * Được thiết kế để đồng nhất phong cách hiển thị trên toàn bộ ứng dụng.
+ */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => {
     return (
       <input
         type={type}
         className={cn(
+          // Các class CSS cho Input (border, padding, focus state, dark mode support)
           "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400",
           className
         )}

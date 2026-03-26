@@ -1,14 +1,23 @@
 import * as React from "react";
 import { cn } from "@/utils/cn";
 
+/**
+ * Định nghĩa các thuộc tính cho component Button.
+ * @param variant: Kiểu dáng của nút (primary, secondary, outline, ghost, danger)
+ * @param size: Kích thước của nút (sm, md, lg)
+ */
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
 }
 
+/**
+ * Component Button: Nút bấm có thể tùy chỉnh kiểu dáng và kích thước.
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", ...props }, ref) => {
+    // Định nghĩa các lớp CSS cho từng loại variant
     const variants = {
       primary: "bg-blue-600 text-white hover:bg-blue-700",
       secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100",
@@ -17,6 +26,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       danger: "bg-red-600 text-white hover:bg-red-700",
     };
 
+    // Định nghĩa các lớp CSS cho từng kích thước
     const sizes = {
       sm: "h-8 px-3 text-xs",
       md: "h-10 px-4 py-2",

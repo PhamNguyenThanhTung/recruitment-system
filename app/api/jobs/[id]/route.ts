@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+/**
+ * Schema kiểm tra dữ liệu khi cập nhật công việc.
+ * Các trường đều là tùy chọn (optional) vì có thể chỉ cập nhật một vài trường.
+ */
 const jobSchema = z.object({
   title: z.string().min(1).optional(),
   company: z.string().min(1).optional(),
@@ -14,6 +18,10 @@ const jobSchema = z.object({
   status: z.enum(["Draft", "Open", "Closed"]).optional(),
 });
 
+/**
+ * GET /api/jobs/[id]
+ * Lấy thông tin chi tiết của một công việc theo ID.
+ */
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
@@ -47,6 +55,10 @@ export async function GET(
   }
 }
 
+/**
+ * PUT /api/jobs/[id]
+ * Cập nhật thông tin công việc. Chỉ người tạo mới có quyền sửa.
+ */
 export async function PUT(
   req: Request,
   { params }: { params: { id: string } }
@@ -72,6 +84,7 @@ export async function PUT(
       );
     }
 
+    // Kiểm tra xem người dùng hiện tại có phải là người đã tạo tin này không
     if (job.userId !== (session.user as any).id) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
@@ -103,6 +116,10 @@ export async function PUT(
   }
 }
 
+/**
+ * DELETE /api/jobs/[id]
+ * Xóa một tin tuyển dụng. Chỉ người tạo mới có quyền xóa.
+ */
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
@@ -128,6 +145,7 @@ export async function DELETE(
       );
     }
 
+    // Kiểm tra quyền sở hữu trước khi xóa
     if (job.userId !== (session.user as any).id) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },

@@ -1,29 +1,15 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { jobSchema } from "@/lib/validations";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-/**
- * Định nghĩa schema kiểm tra dữ liệu đầu vào cho công việc bằng Zod.
- */
-const jobSchema = z.object({
-  title: z.string().min(1),
-  company: z.string().min(1),
-  description: z.string().min(1),
-  requirements: z.string().optional(),
-  salary: z.string().optional(),
-  location: z.string().min(1),
-  deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
-  status: z.enum(["Draft", "Open", "Closed"]).default("Draft"),
-});
 
 /**
  * GET /api/jobs
  * Lấy danh sách các công việc. Có hỗ trợ tìm kiếm theo từ khóa 'q'.
  * 
  * Bảo mật:
- * - Nếu user không phải HR: chỉ hiển thị job có status "Open"
- * - Nếu user là HR: hiển thị tất cả job (bao gồm Draft, Closed)
+ * - Nếu user là HR: chỉ hiển thị job do HR đó tạo (userId === session.user.id)
+ * - Nếu user không phải HR (Candidate): chỉ hiển thị job có status "Open"
  */
 export async function GET(req: Request) {
   try {
@@ -34,8 +20,12 @@ export async function GET(req: Request) {
     // Build where filter dựa trên role
     const whereFilter: any = {};
 
-    // Nếu không phải HR, chỉ lấy job có status "Open"
-    if (session?.user?.role !== "HR") {
+    // ===== BẢNG BẢO MẬT: Filter theo role =====
+    if (session?.user?.role === "HR") {
+      // HR chỉ xem job của chính mình
+      whereFilter.userId = session.user.id;
+    } else {
+      // Candidate & Guest chỉ xem job đang mở
       whereFilter.status = "Open";
     }
 
@@ -69,42 +59,62 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
+    // 1. Kiểm tra quyền HR
     const session = await auth();
-
-    // Kiểm tra quyền hạn
-    if (!session?.user || session.user.role !== "HR") {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!session || session.user.role !== "HR") {
+      return NextResponse.json({ message: "Không có quyền truy cập" }, { status: 403 });
     }
 
-    const body = await req.json();
-    // Validate dữ liệu từ client
-    const validatedData = jobSchema.parse(body);
-
-    // Lưu vào database
-    const job = await db.job.create({
-      data: {
-        ...validatedData,
-        userId: session.user.id,
-      },
+    // 2. LẤY THÔNG TIN CÔNG TY TỪ DATABASE
+    // Tìm CompanyProfile dựa vào ID của người đang đăng nhập
+    const hrProfile = await db.companyProfile.findUnique({
+      where: { userId: session.user.id }
     });
 
-    return NextResponse.json({ success: true, data: job }, { status: 201 });
-  } catch (error) {
-    // Xử lý lỗi validation từ Zod
-    if (error instanceof z.ZodError) {
+    // Bắt lỗi: Nếu HR chưa cập nhật Profile lần đầu, chặn không cho đăng tin
+    if (!hrProfile) {
       return NextResponse.json(
-        { success: false, message: error.errors[0].message },
+        { message: "Vui lòng cập nhật Thông tin Công ty trước khi đăng tin." }, 
         { status: 400 }
       );
     }
 
-    console.error("Job creation error:", error);
+    // 3. Lấy dữ liệu Job từ phía Client gửi lên (Frontend của Đoán/Bắc)
+    const body = await req.json();
+    
+    // ===== VALIDATE DỮ LIỆU QUELA SCHEMA (bao gồm convert deadline) =====
+    // Schema sẽ tự động transform chuỗi ngày "2026-03-27" → ISO-8601 Date object
+    let validatedData;
+    try {
+      validatedData = jobSchema.parse(body);
+    } catch (error) {
+      console.error("❌ Validation error:", error);
+      return NextResponse.json(
+        { message: "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại." },
+        { status: 400 }
+      );
+    }
+
+    // Tách company và location ra (chúng ta sẽ lấy từ hrProfile thay vì client)
+    const { company, location, ...jobData } = validatedData;
+
+    // 4. Tạo Job mới, tự động gán tên công ty và địa chỉ từ hrProfile
+    const newJob = await db.job.create({
+      data: {
+        ...jobData, // deadline đã được convert sang Date object qua schema
+        company: hrProfile.companyName, // Lấy TỰ ĐỘNG từ DB
+        location: hrProfile.address,    // Lấy TỰ ĐỘNG từ DB
+        userId: session.user.id,        // Gắn ID của HR tạo tin
+      }
+    });
+
     return NextResponse.json(
-      { success: false, message: "Something went wrong" },
-      { status: 500 }
+      { message: "Tạo tin tuyển dụng thành công", job: newJob }, 
+      { status: 201 }
     );
+
+  } catch (error) {
+    console.error("Lỗi tạo tin tuyển dụng:", error);
+    return NextResponse.json({ message: "Lỗi Server" }, { status: 500 });
   }
 }

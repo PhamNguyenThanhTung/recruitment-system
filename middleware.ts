@@ -23,6 +23,16 @@ export default auth((req) => {
   // Ví dụ: /jobs/123 được phép, nhưng /jobs/123/apply không được phép
   const isJobDetailPath = /^\/jobs\/[^/]+$/.test(nextUrl.pathname);
 
+  // THÊM ĐOẠN NÀY: Chặn không cho user đã đăng nhập vào lại các trang Auth
+  const authPaths = ['/login', '/register', '/candidate/register'];
+  if (authPaths.includes(nextUrl.pathname) && session) {
+    return NextResponse.redirect(new URL('/', req.url));
+  }
+
+  if (isPublicPath || isJobDetailPath) {
+    return NextResponse.next();
+  }
+
   if (isPublicPath || isJobDetailPath) {
     return NextResponse.next();
   }

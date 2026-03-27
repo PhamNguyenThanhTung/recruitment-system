@@ -2,14 +2,12 @@
 
 import * as React from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -31,13 +29,24 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError("Invalid email or password");
+        setIsLoading(false);
+        return;
+      }
+
+      // Fix lỗi Cookie NextAuth: Phải có cache: "no-store" để lấy session mới nhất
+      const res = await fetch("/api/auth/session", { cache: "no-store" });
+      const session = await res.json();
+
+      // Dùng window.location.href để ép trình duyệt load lại toàn bộ layout
+      // Việc này giúp Header (Navbar) cập nhật được trạng thái Đã đăng nhập
+      if (session?.user?.role === "HR") {
+        window.location.href = "/admin-jobs";
       } else {
-        router.push("/admin-jobs");
-        router.refresh();
+        // Nếu là CANDIDATE, điều hướng thẳng ra trang chủ "/" giống hệt TopCV
+        window.location.href = "/";
       }
     } catch (err) {
-      setError("Something went wrong");
-    } finally {
+      setError("Đã có lỗi xảy ra. Vui lòng thử lại!");
       setIsLoading(false);
     }
   }
@@ -83,7 +92,7 @@ export default function LoginPage() {
             <p className="text-sm text-red-500 font-medium">{error}</p>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
             {isLoading ? "Signing in..." : "Sign in"}
           </Button>
         </form>

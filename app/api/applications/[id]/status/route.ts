@@ -40,15 +40,30 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = applicationStatusSchema.parse(body);
 
-    // Kiểm tra ứng tuyển tồn tại
+    // Kiểm tra ứng tuyển tồn tại & HR owns the job
     const existingApplication = await db.application.findUnique({
       where: { id },
+      include: {
+        job: {
+          select: {
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!existingApplication) {
       return NextResponse.json(
         { error: 'Ứng tuyển không tồn tại' },
         { status: 404 }
+      );
+    }
+
+    // ===== BẢNG BẢO MẬT: Kiểm tra HR owns this job =====
+    if (existingApplication.job.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Bạn không có quyền cập nhật ứng tuyển này' },
+        { status: 403 }
       );
     }
 

@@ -34,7 +34,41 @@ model User {
   // Quan hệ một-nhiều với Application (một candidate nộp nhiều đơn)
   applications Application[]
 
+  companyProfile   CompanyProfile?
+  candidateProfile CandidateProfile?
+
   @@map("users") // Tên bảng trong cơ sở dữ liệu là 'users'
+}
+
+// 2. TẠO BẢNG HỒ SƠ CÔNG TY (Dành riêng cho HR)
+model CompanyProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id") // Quan hệ 1-1
+  companyName String   @map("company_name")
+  address     String
+  website     String?
+  description String?  @db.Text
+  logoUrl     String?  @map("logo_url")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("company_profiles")
+}
+
+// 3. TẠO BẢNG HỒ SƠ ỨNG VIÊN (Dành riêng cho Candidate)
+model CandidateProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id") // Quan hệ 1-1
+  address     String?
+  skills      String?  @db.Text
+  bio         String?  @db.Text
+  defaultCvUrl String? @map("default_cv_url") // Lưu CV mặc định để ứng tuyển nhanh 1 chạm
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_profiles")
 }
 
 // Model Job: Đại diện cho các tin tuyển dụng

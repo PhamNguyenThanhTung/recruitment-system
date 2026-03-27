@@ -31,13 +31,32 @@ export const applicationStatusSchema = z.object({
  */
 export const jobSchema = z.object({
   title: z.string().min(3, 'Tiêu đề phải có ít nhất 3 ký tự'),
-  company: z.string().min(1, 'Tên công ty không được để trống'),
+  company: z.string().optional(), // ✅ THÀNH OPTIONAL - backend sẽ tự động lấy từ CompanyProfile
   description: z.string().min(10, 'Mô tả phải có ít nhất 10 ký tự'),
   requirements: z.string().optional(),
   salary: z.string().optional(),
-  location: z.string().min(1, 'Địa điểm không được để trống'),
-  deadline: z.string().datetime().optional(),
+  location: z.string().optional(), // ✅ THÀNH OPTIONAL - backend sẽ tự động lấy từ CompanyProfile
+  deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
   status: z.enum(['Draft', 'Open', 'Closed']).default('Draft'),
+});
+
+/**
+ * Schema xác thực hồ sơ công ty (Company Profile) - Dành cho HR
+ */
+export const companyProfileSchema = z.object({
+  companyName: z.string().min(2, 'Tên công ty phải có ít nhất 2 ký tự'),
+  address: z.string().min(5, 'Địa chỉ phải có ít nhất 5 ký tự'),
+  website: z.string().url('Website phải là URL hợp lệ').optional().or(z.literal('')),
+  description: z.string().optional(),
+});
+
+/**
+ * Schema xác thực hồ sơ ứng viên (Candidate Profile) - Dành cho Candidate
+ */
+export const candidateProfileSchema = z.object({
+  address: z.string().optional(),
+  skills: z.string().optional(),
+  bio: z.string().optional(),
 });
 
 /**
@@ -72,3 +91,5 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type CandidateRegisterInput = z.infer<typeof candidateRegisterSchema>;
 export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
 export type JobInput = z.infer<typeof jobSchema>;
+export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;
+export type CandidateProfileInput = z.infer<typeof candidateProfileSchema>;

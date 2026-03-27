@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ===== BẢNG BẢO MẬT: Kiểm tra job đã mở hay không =====
+    if (job.status !== 'Open') {
+      return NextResponse.json(
+        { error: 'Công việc này không còn nhận ứng viên' },
+        { status: 403 }
+      );
+    }
+
     // Kiểm tra ứng viên đã nộp đơn cho job này chưa
     const existingApplication = await db.application.findFirst({
       where: {
@@ -153,8 +161,35 @@ export async function GET(request: NextRequest) {
     const jobId = searchParams.get('jobId');
     const status = searchParams.get('status');
 
+    // ===== BẢNG BẢO MẬT: Nếu lọc theo jobId, kiểm tra ownership =====
+    if (jobId) {
+      const jobExists = await db.job.findUnique({
+        where: { id: jobId },
+        select: { userId: true },
+      });
+
+      if (!jobExists) {
+        return NextResponse.json(
+          { error: 'Job không tồn tại' },
+          { status: 404 }
+        );
+      }
+
+      if (jobExists.userId !== session.user.id) {
+        return NextResponse.json(
+          { error: 'Bạn không có quyền xem ứng viên cho job này' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Build where filter
-    const where: any = {};
+    // Nếu không chỉ định jobId, chỉ lấy ứng viên của các job do HR này tạo
+    const where: any = {
+      job: {
+        userId: session.user.id, // HR chỉ xem job của chính mình
+      },
+    };
     if (jobId) where.jobId = jobId;
     if (status) where.status = status;
 

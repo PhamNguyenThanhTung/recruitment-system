@@ -4,42 +4,32 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+
 export default async function LandingPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q: query } = await searchParams;
-
+  
   const jobs = await db.job.findMany({
     where: {
-      status: "Open",
-      ...(query ? {
+      status: 'Open',
+      ...(query && {
         OR: [
-          { title: { contains: query, mode: "insensitive" } },
-          { company: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
+          { title: { contains: query, mode: 'insensitive' } },
+          { company: { contains: query, mode: 'insensitive' } },
+          { description: { contains: query, mode: 'insensitive' } },
+          { location: { contains: query, mode: 'insensitive' } },
         ],
-      } : {}),
+      }),
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b bg-white dark:bg-zinc-950 dark:border-zinc-800">
-        <div className="container mx-auto h-16 flex items-center justify-between px-4">
-          <Link href="/" className="font-bold text-xl">RecruitSync</Link>
-          <div className="flex gap-4">
-            <Link href="/login">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link href="/register">
-              <Button>Post a Job</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* Navbar được render bởi PublicLayout - không cần inline header nữa */}
 
       <main className="flex-1 bg-zinc-50 dark:bg-zinc-950">
         <section className="bg-blue-600 py-20 text-white">

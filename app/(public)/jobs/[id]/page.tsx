@@ -1,5 +1,6 @@
 import * as React from "react";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ export default async function JobDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
+
   const job = await db.job.findUnique({
     where: { id },
   });
@@ -17,6 +20,11 @@ export default async function JobDetailPage({
   if (!job || job.status !== "Open") {
     notFound();
   }
+
+  // ===== LOGIC KIỂM TRA ROLE =====
+  // HR không được xem nút Apply (vì HR không self-apply job của mình)
+  // Candidate và Guest có thể xem nút Apply
+  const canApply = !session || session.user?.role === "CANDIDATE";
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -54,7 +62,22 @@ export default async function JobDetailPage({
                     </div>
                   </div>
                 </div>
-                <Button size="lg" className="md:w-auto w-full">Apply Now</Button>
+                
+                {/* ===== NÚT APPLY: CHỈ HIỆN KHI CANDIDATE HOẶC GUEST ===== */}
+                {canApply && (
+                  <Link href={`/jobs/${job.id}/apply`} className="md:w-auto w-full">
+                    <Button size="lg" className="w-full md:w-auto">
+                      Apply Now
+                    </Button>
+                  </Link>
+                )}
+
+                {/* ===== HIỂN THỊ THÔNG BÁO NẾU LÀ HR ===== */}
+                {!canApply && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 rounded-lg text-sm font-medium">
+                    ℹ️ Bạn là HR, không thể tự ứng tuyển
+                  </div>
+                )}
               </div>
             </div>
 

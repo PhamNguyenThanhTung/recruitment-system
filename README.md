@@ -38,7 +38,6 @@ Dự án đã được quy hoạch lại Route Group để tách biệt hoàn to
   - `lib/auth.ts`: Cấu hình NextAuth v5 (xử lý Session, JWT, Role).
   - `lib/db.ts`: Cấu hình Prisma Client (Singleton).
   - `prisma/schema.prisma`: Định nghĩa Schema cơ sở dữ liệu.
-  - `prisma.config.ts`: Cấu hình kết nối Database cho Prisma 7.
   - `components/ui/`: Các UI Components dùng chung (Button, Input, Label).
   - `utils/cn.ts`: Utility hỗ trợ merge Tailwind classes.
 

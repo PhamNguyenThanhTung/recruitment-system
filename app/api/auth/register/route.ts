@@ -4,25 +4,26 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 /**
- * Schema kiểm tra dữ liệu đăng ký người dùng mới.
+ * Schema xác thực đăng ký - Gộp cho cả HR và Candidate
  */
 const registerSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
   name: z.string().min(2, "Tên phải có ít nhất 2 ký tự"),
+  role: z.enum(["HR", "CANDIDATE"], {
+    errorMap: () => ({ message: "Vai trò phải là HR hoặc CANDIDATE" }),
+  }),
+  phone: z.string().optional(), // Phone là tùy chọn
 });
 
-/**
- * POST /api/auth/register
- * Xử lý đăng ký tài khoản người dùng mới (vai trò mặc định là HR).
- */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    // Kiểm tra tính hợp lệ của dữ liệu đầu vào
-    const { email, password, name } = registerSchema.parse(body);
+    
+    // ===== Xác thực dữ liệu bằng schema =====
+    const { email, password, name, role, phone } = registerSchema.parse(body);
 
-    // Kiểm tra xem email đã tồn tại trong hệ thống chưa
+    // ===== Kiểm tra email đã tồn tại chưa =====
     const existingUser = await db.user.findUnique({
       where: { email },
     });
@@ -34,37 +35,45 @@ export async function POST(req: Request) {
       );
     }
 
-    // Mã hóa mật khẩu trước khi lưu vào DB
+    // ===== Mã hóa mật khẩu =====
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Tạo người dùng mới
+    // ===== Tạo user với role tương ứng =====
     const user = await db.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: "HR", // Gán vai trò mặc định là HR
+        role, // Nhận role từ request body
+        phone: phone || null,
       },
     });
 
-    // Loại bỏ mật khẩu khỏi dữ liệu phản hồi để đảm bảo bảo mật
+    // ===== Loại bỏ password trước khi trả về =====
     const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json(
-      { success: true, data: userWithoutPassword },
+      { 
+        success: true, 
+        message: `Đăng ký tài khoản ${role === "HR" ? "Nhà tuyển dụng" : "Ứng viên"} thành công!`,
+        data: userWithoutPassword 
+      },
       { status: 201 }
     );
   } catch (error) {
-    // Xử lý lỗi validation từ Zod
+    console.error("❌ Lỗi đăng ký:", error);
+
     if (error instanceof z.ZodError) {
+      const firstIssue = error.issues?.[0];
+      const message = firstIssue?.message || "Dữ liệu không hợp lệ";
       return NextResponse.json(
-        { success: false, message: error.errors[0].message },
+        { success: false, message },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { success: false, message: "Đã có lỗi xảy ra" },
+      { success: false, message: "Đã có lỗi xảy ra, vui lòng thử lại sau" },
       { status: 500 }
     );
   }

@@ -10,6 +10,30 @@ export default function NewJobPage() {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  // ===== State để lưu tên công ty và địa chỉ từ CompanyProfile =====
+  const [companyData, setCompanyData] = React.useState({ name: "Đang tải...", address: "Đang tải..." });
+
+  // ===== useEffect: Fetch dữ liệu CompanyProfile từ API =====
+  React.useEffect(() => {
+    async function fetchCompanyProfile() {
+      try {
+        const res = await fetch('/api/profile/company');
+        if (res.ok) {
+          const profile = await res.json();
+          if (profile) {
+            setCompanyData({ 
+              name: profile.companyName, 
+              address: profile.address 
+            });
+          }
+        }
+      } catch (error) {
+        console.error("❌ Lỗi lấy thông tin công ty:", error);
+      }
+    }
+    
+    fetchCompanyProfile();
+  }, []);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,10 +41,9 @@ export default function NewJobPage() {
     setError(null);
 
     const formData = new FormData(event.currentTarget);
+    // ===== Công ty và địa chỉ sẽ tự động lấy từ CompanyProfile =====
     const data = {
       title: formData.get("title"),
-      company: formData.get("company"),
-      location: formData.get("location"),
       salary: formData.get("salary"),
       status: formData.get("status"),
       description: formData.get("description"),
@@ -58,18 +81,45 @@ export default function NewJobPage() {
       </div>
 
       <form onSubmit={onSubmit} className="bg-white dark:bg-zinc-900 p-8 rounded-xl shadow-sm border dark:border-zinc-800 space-y-6">
+        {/* ===== THÔNG BÁO TỰ ĐỘNG: HỆ THỐNG LẤY CÔNG TY VÀ ĐỊA ĐIỂM TỪ HỒ SƠ ===== */}
+        <div className="p-4 mb-6 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900">
+          <div className="flex items-start gap-3">
+            <span className="text-lg">💡</span>
+            <div>
+              <strong>Lưu ý:</strong> Tên công ty và Địa điểm làm việc sẽ được hệ thống <strong>tự động lấy từ Hồ sơ Công ty</strong> của bạn để gắn vào tin tuyển dụng này.
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+          <div className="space-y-2">
+            <Label htmlFor="company" className="text-zinc-700 dark:text-zinc-300">Tên công ty</Label>
+            <Input 
+              id="company" 
+              name="company" 
+              value={companyData.name}
+              readOnly
+              disabled
+              className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 cursor-not-allowed font-semibold" 
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="location" className="text-zinc-700 dark:text-zinc-300">Địa điểm làm việc</Label>
+            <Input 
+              id="location" 
+              name="location" 
+              value={companyData.address}
+              readOnly
+              disabled
+              className="bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 cursor-not-allowed font-semibold" 
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="title">Job Title</Label>
             <Input id="title" name="title" placeholder="Senior Software Engineer" required disabled={isLoading} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="company">Company Name</Label>
-            <Input id="company" name="company" placeholder="Acme Inc." required disabled={isLoading} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input id="location" name="location" placeholder="Remote / Hanoi, Vietnam" required disabled={isLoading} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="salary">Salary Range</Label>

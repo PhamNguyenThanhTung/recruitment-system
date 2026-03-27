@@ -69,6 +69,9 @@ export default async function JobsPage() {
                     <Link href={`/jobs/${job.id}`} target="_blank">
                       <Button variant="ghost" size="sm">View</Button>
                     </Link>
+                    <Link href={`/applications?jobId=${job.id}`}>
+                      <Button variant="outline" size="sm">Xem ứng viên</Button>
+                    </Link>
                   </td>
                 </tr>
               ))

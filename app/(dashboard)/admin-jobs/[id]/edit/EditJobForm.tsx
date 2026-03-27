@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import toast from "react-hot-toast";
 
 export default function EditJobForm({ job }: { job: any }) {
   const router = useRouter();
@@ -19,8 +20,7 @@ export default function EditJobForm({ job }: { job: any }) {
     const formData = new FormData(event.currentTarget);
     const data = {
       title: formData.get("title"),
-      company: formData.get("company"),
-      location: formData.get("location"),
+      // Không gửi company và location vì API đã loại bỏ
       salary: formData.get("salary"),
       status: formData.get("status"),
       description: formData.get("description"),
@@ -40,6 +40,7 @@ export default function EditJobForm({ job }: { job: any }) {
       if (!response.ok) {
         setError(result.message || "Something went wrong");
       } else {
+        toast.success("Cập nhật thành công!");
         router.push("/admin-jobs");
         router.refresh();
       }
@@ -51,7 +52,7 @@ export default function EditJobForm({ job }: { job: any }) {
   }
 
   async function onDelete() {
-    if (!confirm("Are you sure you want to delete this job?")) return;
+    if (!confirm("Bạn có chắc muốn xóa tin này?")) return;
 
     setIsLoading(true);
     try {
@@ -63,6 +64,7 @@ export default function EditJobForm({ job }: { job: any }) {
         const result = await response.json();
         setError(result.message || "Failed to delete");
       } else {
+        toast.success("Đã xóa tin tuyển dụng");
         router.push("/admin-jobs");
         router.refresh();
       }
@@ -82,11 +84,25 @@ export default function EditJobForm({ job }: { job: any }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="company">Company Name</Label>
-          <Input id="company" name="company" defaultValue={job.company} required disabled={isLoading} />
+          <Input
+            id="company"
+            name="company"
+            defaultValue={job.company}
+            disabled={true}
+            className="bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400">Thông tin công ty được quản lý trong hồ sơ công ty</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Input id="location" name="location" defaultValue={job.location} required disabled={isLoading} />
+          <Input
+            id="location"
+            name="location"
+            defaultValue={job.location}
+            disabled={true}
+            className="bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+          />
+          <p className="text-xs text-gray-400">Địa chỉ được lấy từ hồ sơ công ty</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="salary">Salary Range</Label>

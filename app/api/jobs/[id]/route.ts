@@ -3,32 +3,36 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-/**
- * Schema kiểm tra dữ liệu khi cập nhật công việc.
- * Các trường đều là tùy chọn (optional) vì có thể chỉ cập nhật một vài trường.
- */
-const jobSchema = z.object({
+// Schema cho tạo mới (vẫn giữ company và location)
+const createJobSchema = z.object({
+  title: z.string().min(1),
+  company: z.string().min(1),
+  description: z.string().min(1),
+  requirements: z.string().optional(),
+  salary: z.string().optional(),
+  location: z.string().min(1),
+  deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  status: z.enum(["Draft", "Open", "Closed"]).default("Draft"),
+});
+
+// Schema cho cập nhật – KHÔNG có company và location
+const updateJobSchema = z.object({
   title: z.string().min(1).optional(),
-  company: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   requirements: z.string().optional(),
   salary: z.string().optional(),
-  location: z.string().min(1).optional(),
   deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
   status: z.enum(["Draft", "Open", "Closed"]).optional(),
 });
 
-/**
- * GET /api/jobs/[id]
- * Lấy thông tin chi tiết của một công việc theo ID.
- */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: {
           select: {
@@ -48,6 +52,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: job });
   } catch (error) {
+    console.error("GET job error:", error);
     return NextResponse.json(
       { success: false, message: "Something went wrong" },
       { status: 500 }
@@ -55,13 +60,9 @@ export async function GET(
   }
 }
 
-/**
- * PUT /api/jobs/[id]
- * Cập nhật thông tin công việc. Chỉ người tạo mới có quyền sửa.
- */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -73,8 +74,9 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!job) {
@@ -84,8 +86,8 @@ export async function PUT(
       );
     }
 
-    // Kiểm tra xem người dùng hiện tại có phải là người đã tạo tin này không
-    if (job.userId !== (session.user as any).id) {
+    // Kiểm tra quyền sở hữu
+    if (job.userId !== session.user.id) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 }
@@ -93,22 +95,25 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const validatedData = jobSchema.parse(body);
+    // Validate dữ liệu update (không bao gồm company, location)
+    const validatedData = updateJobSchema.parse(body);
 
     const updatedJob = await db.job.update({
-      where: { id: params.id },
+      where: { id },
       data: validatedData,
     });
 
     return NextResponse.json({ success: true, data: updatedJob });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const firstIssue = error.issues?.[0];
+      const message = firstIssue?.message || "Validation error";
       return NextResponse.json(
-        { success: false, message: error.errors[0].message },
+        { success: false, message },
         { status: 400 }
       );
     }
-
+    console.error("PUT job error:", error);
     return NextResponse.json(
       { success: false, message: "Something went wrong" },
       { status: 500 }
@@ -116,13 +121,9 @@ export async function PUT(
   }
 }
 
-/**
- * DELETE /api/jobs/[id]
- * Xóa một tin tuyển dụng. Chỉ người tạo mới có quyền xóa.
- */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -134,8 +135,9 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!job) {
@@ -145,8 +147,7 @@ export async function DELETE(
       );
     }
 
-    // Kiểm tra quyền sở hữu trước khi xóa
-    if (job.userId !== (session.user as any).id) {
+    if (job.userId !== session.user.id) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 }
@@ -154,11 +155,12 @@ export async function DELETE(
     }
 
     await db.job.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true, message: "Job deleted" });
   } catch (error) {
+    console.error("DELETE job error:", error);
     return NextResponse.json(
       { success: false, message: "Something went wrong" },
       { status: 500 }

@@ -9,23 +9,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Model User: Đại diện cho người dùng (nhân viên HR) trong hệ thống
+// ===== ENUM =====
+// Enum Role: Định nghĩa các vai trò trong hệ thống
+enum Role {
+  HR        // Nhân viên HR
+  CANDIDATE // Ứng viên
+}
+
+// ===== MODELS =====
+
+// Model User: Đại diện cho người dùng (HR hoặc Candidate) trong hệ thống
 model User {
-  id        String   @id @default(uuid()) // ID duy nhất (UUID)
+  id        String   @id @default(cuid())
   email     String   @unique             // Địa chỉ email duy nhất để đăng nhập
   password  String                        // Mật khẩu đã được mã hóa
   name      String                        // Tên người dùng
-  role      String   @default("HR")      // Vai trò (mặc định là HR)
+  role      Role     @default(HR)        // Vai trò: HR hoặc CANDIDATE
+  phone     String?                       // Số điện thoại (tùy chọn)
   image     String?                       // Ảnh đại diện (tùy chọn)
   createdAt DateTime @default(now()) @map("created_at") // Thời điểm tạo tài khoản
-  jobs      Job[]                         // Danh sách các công việc do người dùng này tạo
+  
+  // Quan hệ một-nhiều với Job (một HR tạo nhiều job)
+  jobs      Job[]
+  // Quan hệ một-nhiều với Application (một candidate nộp nhiều đơn)
+  applications Application[]
 
   @@map("users") // Tên bảng trong cơ sở dữ liệu là 'users'
 }
 
 // Model Job: Đại diện cho các tin tuyển dụng
 model Job {
-  id           String    @id @default(uuid()) // ID duy nhất của tin tuyển dụng
+  id           String    @id @default(cuid())
   title        String                         // Tiêu đề công việc
   company      String                         // Tên công ty tuyển dụng
   description  String                         // Mô tả chi tiết công việc
@@ -33,10 +47,32 @@ model Job {
   salary       String?                        // Mức lương (tùy chọn)
   location     String                         // Địa điểm làm việc
   deadline     DateTime?                      // Hạn chót nộp hồ sơ (tùy chọn)
-  status       String    @default("Draft")    // Trạng thái tin (Draft, Published, v.v.)
-  userId       String    @map("user_id")      // ID người dùng đã tạo tin này
-  user         User      @relation(fields: [userId], references: [id]) // Quan hệ với model User
+  status       String    @default("Draft")    // Trạng thái tin (Draft, Open, Closed, v.v.)
+  userId       String    @map("user_id")      // ID nhân viên HR đã tạo tin này
+  
+  // Quan hệ với model User (một HR tạo nhiều job)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Quan hệ một-nhiều với Application
+  applications Application[]
+  
   createdAt    DateTime  @default(now()) @map("created_at") // Thời điểm tạo tin
 
   @@map("jobs") // Tên bảng trong cơ sở dữ liệu là 'jobs'
+}
+
+// Model Application: Đại diện cho đơn ứng tuyển
+model Application {
+  id        String   @id @default(cuid())
+  jobId     String   @map("job_id")      // ID của công việc được ứng tuyển
+  userId    String   @map("user_id")     // ID của ứng viên
+  cvFileUrl String   @map("cv_file_url") // URL của file CV (lưu trên Cloudinary)
+  status    String   @default("pending") // Trạng thái đơn: pending, reviewed, interview, accepted, rejected
+  appliedAt DateTime @default(now()) @map("applied_at") // Thời điểm nộp đơn
+  
+  // Quan hệ với Job (một job có nhiều application)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  // Quan hệ với User (một candidate có nhiều application)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("applications") // Tên bảng trong cơ sở dữ liệu là 'applications'
 }

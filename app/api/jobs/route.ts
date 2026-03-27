@@ -20,21 +20,37 @@ const jobSchema = z.object({
 /**
  * GET /api/jobs
  * Lấy danh sách các công việc. Có hỗ trợ tìm kiếm theo từ khóa 'q'.
+ * 
+ * Bảo mật:
+ * - Nếu user không phải HR: chỉ hiển thị job có status "Open"
+ * - Nếu user là HR: hiển thị tất cả job (bao gồm Draft, Closed)
  */
 export async function GET(req: Request) {
   try {
+    const session = await auth();
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q");
 
+    // Build where filter dựa trên role
+    const whereFilter: any = {};
+
+    // Nếu không phải HR, chỉ lấy job có status "Open"
+    if (session?.user?.role !== "HR") {
+      whereFilter.status = "Open";
+    }
+
+    // Thêm search filter nếu có query
+    if (query) {
+      whereFilter.OR = [
+        { title: { contains: query, mode: "insensitive" } },
+        { company: { contains: query, mode: "insensitive" } },
+        { description: { contains: query, mode: "insensitive" } },
+      ];
+    }
+
     // Tìm kiếm công việc trong database
     const jobs = await db.job.findMany({
-      where: query ? {
-        OR: [
-          { title: { contains: query, mode: "insensitive" } },
-          { company: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
-        ],
-      } : {},
+      where: whereFilter,
       orderBy: { createdAt: "desc" }, // Sắp xếp theo thời gian tạo mới nhất
     });
 

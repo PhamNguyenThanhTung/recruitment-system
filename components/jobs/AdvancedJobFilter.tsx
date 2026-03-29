@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 
 // Enum JobType cho Checkbox (Khớp với Prisma Schema của bạn)
 const JOB_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP'];
@@ -11,6 +11,8 @@ export default function AdvancedJobFilter() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [isPending, startTransition] = useTransition();
+
   // Khởi tạo state từ URL hiện tại
   const [keyword, setKeyword] = useState(searchParams.get('q') || '');
   const [location, setLocation] = useState(searchParams.get('location') || '');
@@ -19,11 +21,14 @@ export default function AdvancedJobFilter() {
     searchParams.get('jobType')?.split(',') || []
   );
 
+  // Check xem có bộ lọc nào đang được bật không
+  const hasActiveFilters = keyword || location || minSalary !== '0' || selectedTypes.length > 0;
+
   // Helper function để gộp query params mới vào URL cũ
   const createQueryString = useCallback(
     (paramsToUpdate: Record<string, string | null>) => {
       const params = new URLSearchParams(searchParams.toString());
-      
+
       Object.entries(paramsToUpdate).forEach(([key, value]) => {
         if (value) {
           params.set(key, value);
@@ -31,9 +36,9 @@ export default function AdvancedJobFilter() {
           params.delete(key);
         }
       });
-      
+
       // Khi filter thay đổi, luôn reset về trang 1
-      params.set('page', '1'); 
+      params.set('page', '1');
       return params.toString();
     },
     [searchParams]
@@ -48,7 +53,11 @@ export default function AdvancedJobFilter() {
         minSalary: minSalary === '0' ? null : minSalary,
         jobType: selectedTypes.length > 0 ? selectedTypes.join(',') : null,
       });
-      router.push(`${pathname}?${queryString}`, { scroll: false });
+
+      // BỌC ROUTER.PUSH TRONG USE-TRANSITION ĐỂ KHÔNG BỊ ĐÓNG BĂNG UI
+      startTransition(() => {
+        router.push(`${pathname}?${queryString}`, { scroll: false });
+      });
     }, 500);
 
     return () => clearTimeout(timer);
@@ -60,9 +69,39 @@ export default function AdvancedJobFilter() {
     );
   };
 
+  const handleClearFilters = () => {
+    setKeyword('');
+    setLocation('');
+    setMinSalary('0');
+    setSelectedTypes([]);
+  };
+
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-bold text-gray-900">Bộ lọc tìm kiếm</h3>
+    <div className="relative flex flex-col gap-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      
+      {/* LỚP PHỦ LOADING BÁN TRONG SUỐT */}
+      {isPending && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60 backdrop-blur-[1px]">
+          <div className="flex flex-col items-center gap-2">
+            <span className="material-symbols-outlined animate-spin text-3xl text-blue-600">
+              progress_activity
+            </span>
+            <span className="text-sm font-medium text-blue-600">Đang cập nhật...</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900">Bộ lọc tìm kiếm</h3>
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearFilters}
+            className="text-sm font-medium text-red-500 transition-colors hover:text-red-700 hover:underline"
+          >
+            Xóa bộ lọc
+          </button>
+        )}
+      </div>
 
       {/* Keyword */}
       <div className="flex flex-col gap-2">
@@ -97,7 +136,7 @@ export default function AdvancedJobFilter() {
         <label className="text-sm font-medium text-gray-700">Loại công việc</label>
         <div className="flex flex-col gap-2">
           {JOB_TYPES.map((type) => (
-            <label key={type} className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
+            <label key={type} className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
               <input
                 type="checkbox"
                 checked={selectedTypes.includes(type)}
@@ -112,8 +151,11 @@ export default function AdvancedJobFilter() {
 
       {/* Salary Slider */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700">
-          Mức lương tối thiểu: <span className="font-bold text-blue-600">{Number(minSalary).toLocaleString('vi-VN')} VNĐ</span>
+        <label className="text-sm font-medium text-gray-700 flex justify-between">
+          <span>Lương tối thiểu</span>
+          <span className="font-bold text-blue-600">
+            {minSalary === '0' ? 'Tất cả' : `${(Number(minSalary) / 1000000).toString()} Triệu`}
+          </span>
         </label>
         <input
           type="range"
@@ -122,7 +164,7 @@ export default function AdvancedJobFilter() {
           step="5000000"
           value={minSalary}
           onChange={(e) => setMinSalary(e.target.value)}
-          className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200"
+          className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-blue-600"
         />
       </div>
     </div>

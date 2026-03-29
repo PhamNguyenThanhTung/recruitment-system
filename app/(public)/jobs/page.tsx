@@ -6,40 +6,25 @@ import Pagination from "@/components/ui/Pagination";
 import { auth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import Link from "next/link";
-// --- HELPER PHÂN TÍCH LƯƠNG (Dùng chung logic với API) ---
-function parseSalary(salary: string | null): number | null {
-  if (!salary) return null;
-  let cleaned = salary.trim();
-  if (cleaned.includes("-")) cleaned = cleaned.split("-")[0].trim();
-  if (cleaned.endsWith("M") || cleaned.endsWith("m")) {
-    const num = parseFloat(cleaned.slice(0, -1));
-    return isNaN(num) ? null : num * 1_000_000;
-  }
-  if (cleaned.endsWith("K") || cleaned.endsWith("k")) {
-    const num = parseFloat(cleaned.slice(0, -1));
-    return isNaN(num) ? null : num * 1_000;
-  }
-  cleaned = cleaned.replace(/,/g, "");
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? null : num;
-}
 
 export default async function JobsPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
-  // 1. LẤY PARAMS TỪ URL (Next 15+ bắt buộc await searchParams)
   const params = await searchParams;
   const q = params.q?.trim() || "";
   const location = params.location?.trim() || "";
   const jobType = params.jobType?.trim() || "";
-  const minSalary = params.minSalary ? parseInt(params.minSalary) : null;
-  const maxSalary = params.maxSalary ? parseInt(params.maxSalary) : null;
+  
+  // Lấy mức lương user filter từ URL (Dạng số)
+  const filterMinSalary = params.minSalary ? parseInt(params.minSalary) : null;
+  
   const currentPage = Math.max(1, parseInt(params.page || "1"));
-  const limit = 10; // Cố định 10 job / trang
+  const limit = 10;
+  const skip = (currentPage - 1) * limit;
 
-  // 2. BUILD ĐIỀU KIỆN QUERY DATABASE (PRISMA)
+  // === 1. GIAO CHO PRISMA XỬ LÝ TOÀN BỘ ĐIỀU KIỆN ===
   const where: Prisma.JobWhereInput = { status: "Open" };
 
   if (q) {
@@ -52,48 +37,44 @@ export default async function JobsPage({
     where.location = { contains: location, mode: "insensitive" };
   }
   if (jobType) {
-    // Tách chuỗi "FULL_TIME,PART_TIME" thành mảng nếu user chọn nhiều Checkbox
-    const typesArray = jobType.split(",");
-    where.jobType = { in: typesArray as any[] };
+    where.jobType = { in: jobType.split(",") as any[] };
+  }
+  
+  // 🔥 LỌC LƯƠNG TRỰC TIẾP DƯỚI DATABASE 🔥
+  if (filterMinSalary !== null) {
+    where.OR = [
+      ...(where.OR || []),
+      { minSalary: { gte: filterMinSalary } }, // Job có lương tối thiểu >= Yêu cầu
+      { maxSalary: { gte: filterMinSalary } }  // Hoặc mức lương tối đa chạm tới mức yêu cầu
+    ];
   }
 
-  // 3. KÉO DATA TỪ DB VÀ LỌC LƯƠNG BẰNG JS (Vì salary là text)
-  const rawJobs = await db.job.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      company: true,
-      location: true,
-      salary: true,
-      jobType: true,
-      createdAt: true,
-    },
-  });
+  // === 2. GỌI DB ĐÚNG 1 LẦN (Lấy Data + Lấy Tổng số để phân trang) ===
+  const [rawJobs, total] = await Promise.all([
+    db.job.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,       // Cắt trang thẳng từ DB
+      take: limit, // Chỉ lấy đúng 10 records, không lấy thừa!
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        location: true,
+        salary: true, // Vẫn lấy string ra để render giao diện cho đẹp
+        jobType: true,
+        createdAt: true,
+      },
+    }),
+    db.job.count({ where }), // Đếm tổng số để tính Pagination
+  ]);
 
-  let filteredJobs = rawJobs;
-  if (minSalary !== null || maxSalary !== null) {
-    filteredJobs = rawJobs.filter((job) => {
-      const salaryNum = parseSalary(job.salary);
-      if (salaryNum === null) return false;
-      if (minSalary !== null && salaryNum < minSalary) return false;
-      if (maxSalary !== null && salaryNum > maxSalary) return false;
-      return true;
-    });
-  }
-
-  // 4. TÍNH TOÁN PHÂN TRANG (PAGINATION)
-  const total = filteredJobs.length;
   const totalPages = Math.ceil(total / limit);
-  const skip = (currentPage - 1) * limit;
-  const paginatedJobs = filteredJobs.slice(skip, skip + limit);
 
-  // 5. CHECK TRẠNG THÁI BOOKMARK CỦA USER ĐANG ĐĂNG NHẬP
+  // === 3. KIỂM TRA BOOKMARK NHƯ CŨ ===
   const session = await auth();
   let savedJobIds: string[] = [];
 
-  // Nếu user là Candidate, lấy danh sách các job họ đã thả tim
   if (session?.user?.id && session.user.role === "CANDIDATE") {
     const savedJobs = await db.savedJob.findMany({
       where: { userId: session.user.id },
@@ -102,13 +83,12 @@ export default async function JobsPage({
     savedJobIds = savedJobs.map((s) => s.jobId);
   }
 
-  // Map lại mảng job cuối cùng để nhét cờ isSavedByUser vào
-  const jobs = paginatedJobs.map((job) => ({
+  const jobs = rawJobs.map((job) => ({
     ...job,
     isSavedByUser: savedJobIds.includes(job.id),
   }));
 
-  // === RENDER GIAO DIỆN ===
+  // === GIAO DIỆN (Giữ nguyên y hệt phần return của sếp) ===
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">

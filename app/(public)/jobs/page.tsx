@@ -5,7 +5,7 @@ import BookmarkButton from "@/components/jobs/BookmarkButton";
 import Pagination from "@/components/ui/Pagination";
 import { auth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
-
+import Link from "next/link";
 // --- HELPER PHÂN TÍCH LƯƠNG (Dùng chung logic với API) ---
 function parseSalary(salary: string | null): number | null {
   if (!salary) return null;
@@ -137,10 +137,13 @@ export default async function JobsPage({
             jobs.map((job) => (
               <div key={job.id} className="group relative flex gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-blue-500 hover:shadow-md">
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600">
-                    {job.title}
-                  </h3>
-                  <p className="text-gray-600 font-medium">{job.company}</p>
+                  {/* Bọc Link vào đây để click chuyển sang trang Detail */}
+                  <Link href={`/jobs/${job.id}`}>
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer inline-block">
+                      {job.title}
+                    </h3>
+                  </Link>
+                  <p className="text-gray-600 font-medium mt-1">{job.company}</p>
                   
                   <div className="mt-4 flex flex-wrap gap-2">
                     {/* Badge Lương */}

@@ -2,241 +2,182 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useSession, signOut } from 'next-auth/react';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
-/**
- * Trang Hồ sơ Ứng viên - Cập nhật kỹ năng và thông tin cá nhân
- * 
- * Ngữ cảnh: Nơi ứng viên cập nhật kỹ năng, địa chỉ và giới thiệu bản thân.
- * 
- * Tính năng:
- * - Form gồm: Địa chỉ, Kỹ năng (nhập text), Giới thiệu bản thân (textarea)
- * - useEffect fetch GET /api/profile/candidate để load dữ liệu cũ
- * - Submit gọi POST /api/profile/candidate
- * - Thành công: hiển thị Toast màu xanh, giữ nguyên trang (không redirect)
- */
-export default function CandidateProfilePage() {
+interface Application {
+  id: string;
+  status: string;
+  appliedAt: string;
+  job: {
+    title: string;
+    company: string;
+  };
+}
+
+export default function CandidateDashboardPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  // State quản lý form dữ liệu
-  const [formData, setFormData] = useState({
-    address: '',
-    skills: '',
-    bio: '',
-  });
-
-  // State quản lý trạng thái submit
+  const [formData, setFormData] = useState({ address: '', skills: '', bio: '' });
+  const [myApplications, setMyApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
 
+  // 1. Bảo vệ tuyến
   useEffect(() => {
     if (status === 'loading') return;
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-    if (session?.user?.role !== 'CANDIDATE') {
-      router.push('/');
-    }
+    if (status === 'unauthenticated') { router.push('/login'); return; }
+    if (session?.user?.role !== 'CANDIDATE') { router.push('/'); }
   }, [status, session, router]);
 
-  // ===== useEffect: Fetch dữ liệu hồ sơ ứng viên cũ =====
+  // 2. Fetch Data
   useEffect(() => {
     if (status !== 'authenticated' || session?.user?.role !== 'CANDIDATE') return;
-    const fetchCandidateProfile = async () => {
+    const fetchData = async () => {
       try {
         setIsFetching(true);
-        const response = await fetch('/api/profile/candidate');
-
-        if (!response.ok) {
-          // Nếu không tìm thấy profile (404) là bình thường, user mới
-          if (response.status !== 404) {
-            toast.error('❌ Không thể tải hồ sơ ứng viên');
-          }
-          setIsFetching(false);
-          return;
+        const [profileRes, appRes] = await Promise.all([
+          fetch('/api/profile/candidate'),
+          fetch('/api/applications/my-applications')
+        ]);
+        if (profileRes.ok) {
+          const p = await profileRes.json();
+          setFormData({ address: p.address || '', skills: p.skills || '', bio: p.bio || '' });
         }
-
-        const data = await response.json();
-
-        // Nếu có dữ liệu cũ, update vào form
-        if (data) {
-          setFormData({
-            address: data.address || '',
-            skills: data.skills || '',
-            bio: data.bio || '',
-          });
-        }
-
+        if (appRes.ok) setMyApplications(await appRes.json());
         setIsFetching(false);
-      } catch (error) {
-        console.error('❌ Lỗi fetch profile:', error);
-        toast.error('❌ Lỗi khi tải dữ liệu hồ sơ');
-        setIsFetching(false);
-      }
+      } catch (error) { setIsFetching(false); }
     };
+    fetchData();
+  }, [status, session]);
 
-    // Chỉ fetch nếu session đã có sẵn
-    if (session?.user?.id) {
-      fetchCandidateProfile();
-    }
-  }, [status, session?.user?.id, session?.user?.role]);
-
-  // ===== Handler: Cập nhật giá trị form =====
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // ===== Handler: Submit form =====
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-
-      // Gọi API POST để cập nhật/tạo hồ sơ
-      const response = await fetch('/api/profile/candidate', {
+      const res = await fetch('/api/profile/candidate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        toast.error(`❌ ${errorData.error || 'Lỗi cập nhật hồ sơ'}`);
-        setIsLoading(false);
-        return;
-      }
-
-      // Thành công: hiển thị toast xanh
-      toast.success('✅ Cập nhật hồ sơ thành công!');
-      setIsLoading(false);
-
-      // Giữ nguyên trang (không redirect)
-    } catch (error) {
-      console.error('❌ Lỗi submit form:', error);
-      toast.error('❌ Lỗi hệ thống, vui lòng thử lại');
-      setIsLoading(false);
-    }
+      if (res.ok) toast.success('Cập nhật thành công!');
+    } finally { setIsLoading(false); }
   };
 
-  // Hiển thị spinner khi đang fetch dữ liệu
-  if (status === 'loading' || (status === 'authenticated' && session?.user?.role !== 'CANDIDATE') || isFetching) {
-    return (
-      <div className="mx-auto w-full max-w-6xl bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-sm p-12 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-12 w-12 border-4 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400 font-medium">Đang tải hồ sơ...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isFetching) return (
+    <div className="flex items-center justify-center min-h-screen text-primary">
+      <span className="material-symbols-outlined animate-spin text-5xl">progress_activity</span>
+    </div>
+  );
 
   return (
-    <div className="mx-auto w-full max-w-6xl bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-700 shadow-sm">
-      {/* Header */}
-      <div className="border-b border-gray-200 dark:border-zinc-700 p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-2xl">👤</span>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Quản lý CV & Profile
-          </h2>
-        </div>
-        <p className="text-gray-600 dark:text-gray-400 text-sm">
-          Cập nhật thông tin cá nhân, kỹ năng để tìm được công việc phù hợp
-        </p>
-      </div>
+    <div className="flex min-h-screen bg-[#f7f9fb] font-body text-on-surface">
+      
 
-      {/* Form */}
-      <div className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Địa chỉ */}
-          <div>
-            <Label htmlFor="address" className="text-gray-700 dark:text-gray-300 font-semibold">
-              Địa chỉ <span className="text-gray-400 text-sm">(tùy chọn)</span>
-            </Label>
-            <Input
-              id="address"
-              name="address"
-              type="text"
-              placeholder="Nhập địa chỉ của bạn"
-              value={formData.address}
-              onChange={handleInputChange}
-              className="mt-2"
-            />
-          </div>
-
-          {/* Kỹ năng */}
-          <div>
-            <Label htmlFor="skills" className="text-gray-700 dark:text-gray-300 font-semibold">
-              Kỹ năng <span className="text-gray-400 text-sm">(tùy chọn)</span>
-            </Label>
-            <Textarea
-              id="skills"
-              name="skills"
-              placeholder="Nhập các kỹ năng của bạn (cách nhau bằng dấu phẩy)"
-              value={formData.skills}
-              onChange={handleInputChange}
-              className="mt-2"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">💡 Ví dụ: React, TypeScript, Node.js, SQL</p>
-          </div>
-
-          {/* Giới thiệu bản thân */}
-          <div>
-            <Label htmlFor="bio" className="text-gray-700 dark:text-gray-300 font-semibold">
-              Giới thiệu bản thân <span className="text-gray-400 text-sm">(tùy chọn)</span>
-            </Label>
-            <Textarea
-              id="bio"
-              name="bio"
-              placeholder="Viết ngắn gọn về bạn, kinh nghiệm, và mục tiêu sự nghiệp..."
-              value={formData.bio}
-              onChange={handleInputChange}
-              className="mt-2"
-            />
-          </div>
-
-          {/* Button Submit */}
-          <div className="pt-4 flex gap-3">
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              disabled={isLoading}
-              className="flex-1"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Đang cập nhật...
+      {/* ================= MAIN CONTENT AREA ================= */}
+      <main className="flex-1 ml-64 p-10">
+        <div className="max-w-6xl mx-auto space-y-8">
+          
+          {/* Header với Avatar tròn */}
+          <div className="flex justify-between items-center bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-full border-4 border-blue-50 bg-primary text-white flex items-center justify-center font-headline font-black text-4xl shadow-inner overflow-hidden">
+                {session?.user?.image ? <img src={session.user.image} className="w-full h-full object-cover" /> : session?.user?.name?.charAt(0)}
+              </div>
+              <div>
+                <h2 className="text-3xl font-black font-headline tracking-tight">{session?.user?.name}</h2>
+                <div className="flex gap-4 mt-2 text-sm font-medium text-slate-500">
+                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-sm text-blue-500">mail</span> {session?.user?.email}</span>
+                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-sm text-blue-500">location_on</span> {formData.address || 'Hà Nội, Việt Nam'}</span>
                 </div>
-              ) : (
-                '💾 Lưu hồ sơ'
-              )}
-            </Button>
+              </div>
+            </div>
+            <button className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-600/20 hover:scale-[1.02] transition-all">Update Photo</button>
           </div>
-        </form>
 
-        {/* Footer info */}
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-zinc-700">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            📝 Hồ sơ của bạn sẽ được nhà tuyển dụng xem khi bạn nộp đơn ứng tuyển.
-          </p>
+          <div className="grid grid-cols-12 gap-8">
+            
+            {/* Cột trái: Personal Info Form */}
+            <div className="col-span-7 bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+              <h3 className="text-xl font-black font-headline mb-6">Personal Information</h3>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Họ và Tên</label>
+                    <input disabled value={session?.user?.name || ''} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-400 cursor-not-allowed" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email</label>
+                    <input disabled value={session?.user?.email || ''} className="w-full p-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-400 cursor-not-allowed" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Kỹ năng chuyên môn</label>
+                  <input 
+                    value={formData.skills} 
+                    onChange={(e) => setFormData({...formData, skills: e.target.value})} 
+                    className="w-full p-4 rounded-2xl bg-slate-50 focus:bg-white border-2 border-transparent focus:border-blue-500 outline-none transition-all font-bold" 
+                    placeholder="React, Node.js..." 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Giới thiệu bản thân</label>
+                  <textarea 
+                    value={formData.bio} 
+                    onChange={(e) => setFormData({...formData, bio: e.target.value})} 
+                    rows={4} 
+                    className="w-full p-4 rounded-2xl bg-slate-50 focus:bg-white border-2 border-transparent focus:border-blue-500 outline-none transition-all font-bold resize-none" 
+                  />
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button type="submit" disabled={isLoading} className="bg-[#1a1c1e] text-white px-10 py-4 rounded-2xl font-black text-sm hover:scale-[1.02] transition-all shadow-xl">
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Cột phải: Candidate Pipeline & Applications */}
+            <div className="col-span-5 space-y-8">
+              
+              {/* Pipeline Stat (Giống ảnh 2) */}
+              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+                <h3 className="text-xl font-black font-headline mb-6">Application Progress</h3>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold uppercase mb-2"><span>Applied</span><span>{myApplications.length}</span></div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-600 rounded-full w-[100%]"></div></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold uppercase mb-2"><span>Interviewing</span><span>0</span></div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-teal-400 rounded-full w-[0%]"></div></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* List đơn ứng tuyển gần đây */}
+              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+                <h3 className="text-lg font-black font-headline mb-4">Active Applications</h3>
+                <div className="space-y-4">
+                  {myApplications.slice(0, 3).map(app => (
+                    <div key={app.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-blue-200 transition-all">
+                      <h4 className="font-bold text-sm group-hover:text-blue-600 transition-colors">{app.job.title}</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{app.job.company}</p>
+                      <div className="mt-3 flex justify-between items-center">
+                        <span className="text-[9px] font-black px-2 py-1 bg-blue-100 text-blue-700 rounded-md uppercase">{app.status}</span>
+                        <span className="text-[9px] font-bold text-slate-400">{new Date(app.appliedAt).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

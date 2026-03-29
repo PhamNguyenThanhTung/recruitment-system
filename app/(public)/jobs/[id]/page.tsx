@@ -1,9 +1,7 @@
-import * as React from "react";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth"; 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default async function JobDetailPage({
   params,
@@ -11,108 +9,277 @@ export default async function JobDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
+  const session = await auth(); 
 
+  // 1. KÉO DỮ LIỆU JOB HIỆN TẠI
   const job = await db.job.findUnique({
     where: { id },
+    include: {
+      user: {
+        include: {
+          companyProfile: true, 
+        },
+      },
+    },
   });
 
   if (!job || job.status !== "Open") {
     notFound();
   }
 
-  // ===== LOGIC KIỂM TRA ROLE =====
-  // HR không được xem nút Apply (vì HR không self-apply job của mình)
-  // Candidate và Guest có thể xem nút Apply
+  // 2. KÉO DỮ LIỆU CÁC JOB TƯƠNG TỰ (Cùng tên vị trí, trừ job hiện tại, lấy tối đa 3)
+  const similarJobs = await db.job.findMany({
+    where: {
+      title: {
+        contains: job.title, // Lọc theo tên vị trí tương tự
+        mode: 'insensitive', // Không phân biệt hoa thường
+      },
+      id: {
+        not: job.id, // Loại trừ job đang xem
+      },
+      status: "Open", // Chỉ lấy job đang mở
+    },
+    take: 3, // Lấy tối đa 3 jobs để dàn đều 3 cột
+    include: {
+      user: {
+        include: { companyProfile: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Fallback data cho Job hiện tại
+  const companyProfile = job.user?.companyProfile;
+  const companyName = companyProfile?.companyName || job.company;
+  const companyLogo = companyProfile?.logoUrl || null;
+  const initialLogo = companyName.charAt(0).toUpperCase();
+
+  // Logic kiểm tra Role
   const canApply = !session || session.user?.role === "CANDIDATE";
+  const isHR = session?.user?.role === "HR";
+
+  let hasApplied = false;
+  if (session?.user?.id && !isHR) {
+    const existingApp = await db.application.findFirst({
+      where: {
+        jobId: job.id,
+        userId: session.user.id,
+      },
+    });
+    hasApplied = !!existingApp;
+  }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="border-b bg-white dark:bg-zinc-950 dark:border-zinc-800">
-        <div className="container mx-auto h-16 flex items-center justify-between px-4">
-          <Link href="/" className="font-bold text-xl">RecruitSync</Link>
-          <div className="flex gap-4">
-            <Link href="/login">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link href="/register">
-              <Button>Post a Job</Button>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-surface font-body text-on-surface">
+      <main className="pb-20 px-6 max-w-7xl mx-auto pt-8">
+        
+        {/* ================= BREADCRUMB ================= */}
+        <div className="mb-8 flex items-center gap-2 text-on-surface-variant font-label text-sm tracking-wide uppercase">
+          <Link href="/jobs" className="hover:text-primary transition-colors">Jobs</Link>
+          <span className="material-symbols-outlined text-sm">chevron_right</span>
+          <span>{job.location}</span>
+          <span className="material-symbols-outlined text-sm">chevron_right</span>
+          <span className="text-primary font-bold line-clamp-1">{job.title}</span>
         </div>
-      </header>
 
-      <main className="flex-1 bg-zinc-50 dark:bg-zinc-950 py-12">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <Link href="/" className="text-sm text-blue-600 hover:underline mb-8 block">
-            ← Back to all jobs
-          </Link>
-
-          <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-8 border-b dark:border-zinc-800">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div>
-                  <h1 className="text-3xl font-bold">{job.title}</h1>
-                  <p className="text-xl text-zinc-600 dark:text-zinc-400 mt-2">{job.company}</p>
-                  <div className="flex flex-wrap gap-4 mt-6 text-sm">
-                    <div className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">{job.location}</div>
-                    {job.salary && <div className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">{job.salary}</div>}
-                    <div className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-                      Posted {new Date(job.createdAt).toLocaleDateString()}
-                    </div>
+        {/* ================= GRID 2 CỘT ================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* CỘT TRÁI: THÔNG TIN CHI TIẾT */}
+          <div className="lg:col-span-8 space-y-8">
+            {/* Header Card */}
+            <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] relative overflow-hidden border border-outline-variant/10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-secondary-container/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center shrink-0">
+                    {companyLogo ? (
+                      <img className="w-full h-full object-cover" alt={companyName} src={companyLogo} />
+                    ) : (
+                      <span className="text-3xl font-headline font-bold text-primary">{initialLogo}</span>
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-extrabold font-headline text-on-surface tracking-tight mb-1">{job.title}</h1>
+                    <p className="text-lg text-primary font-semibold">{companyName} · {job.location}</p>
                   </div>
                 </div>
                 
-                {/* ===== NÚT APPLY: CHỈ HIỆN KHI CANDIDATE HOẶC GUEST ===== */}
-                {canApply && (
-                  <Link href={`/jobs/${job.id}/apply`} className="md:w-auto w-full">
-                    <Button size="lg" className="w-full md:w-auto">
-                      Apply Now
-                    </Button>
-                  </Link>
-                )}
-
-                {/* ===== HIỂN THỊ THÔNG BÁO NẾU LÀ HR ===== */}
-                {!canApply && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 rounded-lg text-sm font-medium">
-                    ℹ️ Bạn là HR, không thể tự ứng tuyển
+                <div className="flex flex-wrap gap-3 mb-8">
+                  <span className="bg-secondary-fixed text-on-secondary-fixed-variant px-4 py-1.5 rounded-full font-label text-xs font-bold uppercase tracking-wider">
+                    Đang mở tuyển
+                  </span>
+                  {job.salary && (
+                    <span className="bg-primary-fixed text-on-primary-fixed-variant px-4 py-1.5 rounded-full font-label text-xs font-bold uppercase tracking-wider">
+                      {job.salary}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-outline-variant/15">
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-primary bg-primary/5 p-2 rounded-lg">calendar_today</span>
+                    <div>
+                      <p className="text-on-surface-variant text-xs font-label uppercase">Ngày đăng</p>
+                      <p className="font-bold text-sm">{new Date(job.createdAt).toLocaleDateString('vi-VN')}</p>
+                    </div>
                   </div>
-                )}
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-secondary bg-secondary/5 p-2 rounded-lg">event</span>
+                    <div>
+                      <p className="text-on-surface-variant text-xs font-label uppercase">Hạn nộp</p>
+                      <p className="font-bold text-sm">
+                        {job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : "Không giới hạn"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="p-8 space-y-8">
-              <section>
-                <h2 className="text-xl font-bold mb-4">Description</h2>
-                <div className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                  {job.description}
-                </div>
-              </section>
+            {/* Description Card */}
+            <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_4px_20px_rgba(0,89,187,0.04)] border border-outline-variant/10">
+              <h2 className="text-2xl font-extrabold font-headline mb-6 text-on-surface">Mô tả công việc</h2>
+              <div className="space-y-4 text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                {job.description}
+              </div>
+            </div>
 
-              {job.requirements && (
-                <section>
-                  <h2 className="text-xl font-bold mb-4">Requirements</h2>
-                  <div className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                    {job.requirements}
+            {/* Requirements Card */}
+            {job.requirements && (
+              <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_4px_20px_rgba(0,89,187,0.04)] border border-outline-variant/10">
+                <h3 className="text-xl font-bold font-headline mb-6 text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">verified</span>
+                  Yêu cầu ứng viên
+                </h3>
+                <div className="space-y-4 text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                  {job.requirements}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* CỘT PHẢI: CALL TO ACTION & COMPANY INFO */}
+          <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-28">
+            <div className="bg-primary text-on-primary p-8 rounded-xl shadow-[0px_20px_50px_rgba(0,89,187,0.15)] relative overflow-hidden">
+              <div className="absolute bottom-0 right-0 w-32 h-32 bg-white/10 rounded-full -mb-10 -mr-10"></div>
+              <div className="relative z-10">
+                {!canApply ? (
+                  <>
+                    <h3 className="text-2xl font-extrabold font-headline mb-2">Bạn là HR</h3>
+                    <p className="text-primary-fixed/80 text-sm mb-8 leading-relaxed">Nhà tuyển dụng không thể tự ứng tuyển công việc này.</p>
+                  </>
+                ) : hasApplied ? (
+                  <>
+                    <h3 className="text-2xl font-extrabold font-headline mb-2">Đã ứng tuyển</h3>
+                    <p className="text-primary-fixed/80 text-sm mb-8 leading-relaxed">Bạn đã nộp CV cho vị trí này. Hãy theo dõi trạng thái trong Dashboard.</p>
+                    <Link href="/candidate/dashboard">
+                      <button className="w-full bg-surface-container-low text-primary font-headline font-extrabold py-4 rounded-xl mb-4 transition-all">
+                        Xem đơn ứng tuyển
+                      </button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-2xl font-extrabold font-headline mb-2">Sẵn sàng ứng tuyển?</h3>
+                    <p className="text-primary-fixed/80 text-sm mb-8 leading-relaxed">Nắm bắt cơ hội nghề nghiệp tuyệt vời này bằng cách gửi CV ngay hôm nay.</p>
+                    <Link href={`/jobs/${job.id}/apply`}>
+                      <button className="w-full bg-secondary-container text-on-secondary-container font-headline font-extrabold py-4 rounded-xl mb-4 transition-all hover:brightness-105 active:scale-95 duration-200 shadow-lg">
+                        Ứng tuyển ngay
+                      </button>
+                    </Link>
+                  </>
+                )}
+                
+                <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-xs font-label opacity-70">
+                  <span className="truncate max-w-[150px]">ID: {job.id}</span>
+                  <div className="flex gap-4">
+                    <span className="material-symbols-outlined cursor-pointer hover:opacity-100">share</span>
                   </div>
-                </section>
-              )}
-
-              {job.deadline && (
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-sm font-medium">
-                  Application Deadline: {new Date(job.deadline).toLocaleDateString()}
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
+              <h3 className="text-lg font-extrabold font-headline mb-6 text-on-surface">Về công ty</h3>
+              {companyProfile ? (
+                <div className="space-y-4">
+                  {companyProfile.website && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-on-surface-variant text-sm">Website</span>
+                      <a href={companyProfile.website} target="_blank" rel="noreferrer" className="font-bold text-sm text-primary hover:underline truncate max-w-[150px]">
+                        Truy cập
+                      </a>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="text-on-surface-variant text-sm shrink-0">Địa chỉ</span>
+                    <span className="font-bold text-sm text-right line-clamp-3">{companyProfile.address}</span>
+                  </div>
+                  {companyProfile.description && (
+                    <div className="mt-6 pt-6 border-t border-outline-variant/15">
+                      <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-4">
+                        {companyProfile.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-outline italic">Chưa có thông tin chi tiết về công ty này.</p>
               )}
             </div>
           </div>
         </div>
-      </main>
 
-      <footer className="border-t py-12 bg-white dark:bg-zinc-950 dark:border-zinc-800">
-        <div className="container mx-auto px-4 text-center text-zinc-500 text-sm">
-          <p>© 2026 RecruitSync. All rights reserved.</p>
-        </div>
-      </footer>
+        {/* ================= SIMILAR OPPORTUNITIES ================= */}
+        {similarJobs.length > 0 && (
+          <section className="mt-20">
+            <h2 className="text-3xl font-extrabold font-headline mb-10 text-on-surface">Việc làm tương tự</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {similarJobs.map((simJob) => {
+                const simCompany = simJob.user?.companyProfile;
+                const simCompanyName = simCompany?.companyName || simJob.company;
+                const simCompanyLogo = simCompany?.logoUrl || null;
+                
+                return (
+                  <Link href={`/jobs/${simJob.id}`} key={simJob.id} className="block group h-full">
+                    <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.04)] group-hover:shadow-[0px_15px_50px_rgba(0,89,187,0.1)] transition-all h-full flex flex-col justify-between border border-transparent group-hover:border-outline-variant/20">
+                      <div>
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden flex items-center justify-center">
+                            {simCompanyLogo ? (
+                              <img className="w-full h-full object-cover" alt={simCompanyName} src={simCompanyLogo} />
+                            ) : (
+                              <span className="font-headline font-bold text-xl text-primary">{simCompanyName.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <button className="text-outline hover:text-primary transition-colors">
+                            <span className="material-symbols-outlined">bookmark</span>
+                          </button>
+                        </div>
+                        <h3 className="font-headline font-extrabold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-2">
+                          {simJob.title}
+                        </h3>
+                        <p className="text-on-surface-variant text-sm mb-4 line-clamp-1">
+                          {simCompanyName} · {simJob.location}
+                        </p>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-4 border-t border-outline-variant/15 mt-4">
+                        <span className="text-primary font-bold text-sm truncate pr-2">
+                          {simJob.salary || "Thỏa thuận"}
+                        </span>
+                        <span className="text-on-surface-variant text-xs font-label shrink-0">
+                          {new Date(simJob.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   );
 }

@@ -2,83 +2,160 @@ import * as React from "react";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
 
 export default async function JobsPage() {
   const session = await auth();
   
-  if (!session?.user) return null;
+  if (!session?.user) redirect('/login');
 
+  // Lấy danh sách việc làm và đếm luôn số CV của mỗi việc làm đó
   const jobs = await db.job.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
+    include: {
+      _count: {
+        select: { applications: true }
+      }
+    }
   });
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Open":
+        return <span className="bg-secondary/10 text-secondary px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Đang mở tuyển</span>;
+      case "Draft":
+        return <span className="bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Bản nháp</span>;
+      case "Closed":
+        return <span className="bg-error/10 text-error px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Đã đóng</span>;
+      default:
+        return <span className="bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">{status}</span>;
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Jobs Dashboard</h1>
-        <Link href="/admin-jobs/new">
-          <Button>Post a New Job</Button>
-        </Link>
+    <>
+      {/* ================= HEADER SECTION ================= */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight font-headline">Quản lý Việc làm</h1>
+          <p className="text-on-surface-variant font-medium mt-2">
+            Bạn đang có <span className="text-primary font-bold">{jobs.length}</span> tin tuyển dụng trên hệ thống.
+          </p>
+        </div>
+
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 shadow-sm border dark:border-zinc-800 rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Company</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Created At</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {jobs.length === 0 ? (
+      {/* ================= FILTERS & BẢNG TÓM TẮT (Dummy Filter Layout) ================= */}
+      <section className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-6 mb-8 shadow-[0px_4px_20px_rgba(0,89,187,0.02)] flex flex-wrap gap-4 items-center">
+        <div className="flex-1 min-w-[300px] relative">
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+          <input 
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-outline-variant/20 bg-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-outline/60 text-sm font-medium" 
+            placeholder="Tìm kiếm tin tuyển dụng..." 
+            type="text"
+          />
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          <button className="flex items-center gap-2 bg-surface-container-low py-3 px-5 rounded-xl border-0 text-sm font-bold text-on-surface hover:bg-surface-container-high transition-colors">
+            <span className="material-symbols-outlined text-[20px]">filter_list</span>
+            Bộ lọc
+          </button>
+        </div>
+      </section>
+
+      {/* ================= BẢNG DỮ LIỆU (JOBS TABLE) ================= */}
+      {jobs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-surface-container-lowest rounded-2xl border border-outline-variant/10 text-center px-4">
+          <div className="w-20 h-20 bg-surface-container-high rounded-full flex items-center justify-center mb-6">
+            <span className="material-symbols-outlined text-4xl text-outline">work_off</span>
+          </div>
+          <h3 className="text-xl font-bold font-headline mb-2">Chưa có tin tuyển dụng nào</h3>
+          <p className="text-on-surface-variant mb-6">Bắt đầu thu hút nhân tài bằng cách tạo tin tuyển dụng đầu tiên của bạn.</p>
+          <Link href="/admin-jobs/new">
+            <button className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold">Đăng tin ngay</button>
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-surface-container-lowest rounded-2xl overflow-x-auto shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead className="bg-surface-container-low/50 border-b border-outline-variant/10">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
-                  No jobs found. Start by posting one!
-                </td>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label">Vị trí tuyển dụng</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label text-center">Trạng thái</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label text-center">Ứng viên</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label">Ngày đăng</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label text-right">Thao tác</th>
               </tr>
-            ) : (
-              jobs.map((job) => (
-                <tr key={job.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{job.title}</div>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/10">
+              {jobs.map((job) => (
+                <tr key={job.id} className="hover:bg-surface-container-low/30 transition-colors group">
+                  
+                  {/* Cột 1: Tên Job & Location */}
+                  <td className="px-6 py-5">
+                    <div className="flex flex-col">
+                      <Link href={`/admin-jobs/${job.id}/edit`} className="font-bold text-on-surface font-headline hover:text-primary transition-colors text-base line-clamp-1">
+                        {job.title}
+                      </Link>
+                      <p className="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">location_on</span>
+                        {job.location || "Chưa xác định"}
+                      </p>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400">{job.company}</div>
+                  
+                  {/* Cột 2: Status */}
+                  <td className="px-6 py-5 text-center">
+                    {getStatusBadge(job.status)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      job.status === "Open" ? "bg-green-100 text-green-800" : 
-                      job.status === "Closed" ? "bg-red-100 text-red-800" : 
-                      "bg-zinc-100 text-zinc-800"
-                    }`}>
-                      {job.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 dark:text-zinc-400">
-                    {new Date(job.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <Link href={`/admin-jobs/${job.id}/edit`}>
-                      <Button variant="outline" size="sm">Edit</Button>
-                    </Link>
-                    <Link href={`/jobs/${job.id}`} target="_blank">
-                      <Button variant="ghost" size="sm">View</Button>
-                    </Link>
+
+                  {/* Cột 3: Đếm số lượng ứng viên (Sẽ click được sang trang Application) */}
+                  <td className="px-6 py-5 text-center">
                     <Link href={`/applications?jobId=${job.id}`}>
-                      <Button variant="outline" size="sm">Xem ứng viên</Button>
+                      <div className="inline-flex flex-col items-center justify-center p-2 rounded-lg hover:bg-primary/5 transition-colors cursor-pointer group/badge">
+                        <span className="font-headline font-black text-lg text-on-surface group-hover/badge:text-primary transition-colors">
+                          {job._count.applications}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase text-outline group-hover/badge:text-primary/70">Hồ sơ</span>
+                      </div>
                     </Link>
+                  </td>
+                  
+                  {/* Cột 4: Ngày tháng */}
+                  <td className="px-6 py-5">
+                    <p className="text-sm font-medium text-on-surface">{new Date(job.createdAt).toLocaleDateString('vi-VN')}</p>
+                    <p className="text-xs text-outline mt-1 line-clamp-1">{job.salary || "Lương thỏa thuận"}</p>
+                  </td>
+                  
+                  {/* Cột 5: Hành động */}
+                  <td className="px-6 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link href={`/jobs/${job.id}`} target="_blank">
+                        <button className="flex items-center justify-center p-2 text-slate-500 hover:text-primary hover:bg-primary-fixed/50 rounded-lg transition-colors" title="Xem trên Web tuyển dụng">
+                          <span className="material-symbols-outlined">public</span>
+                        </button>
+                      </Link>
+                      <Link href={`/admin-jobs/${job.id}/edit`}>
+                        <button className="flex items-center justify-center p-2 text-slate-500 hover:text-primary hover:bg-primary-fixed/50 rounded-lg transition-colors" title="Chỉnh sửa tin">
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              ))}
+            </tbody>
+          </table>
+          
+          {/* Pagination (Trang trí UI) */}
+          <div className="px-6 py-5 bg-surface-container-low/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-on-surface-variant font-medium">
+              Hiển thị <span className="font-bold text-on-surface">{jobs.length}</span> kết quả
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

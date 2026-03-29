@@ -2,7 +2,7 @@ import * as React from "react";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
-import EditJobForm from "./EditJobForm";
+import EditJobForm from "../../../../../components/forms/EditJobForm";
 
 export default async function EditJobPage({
   params,

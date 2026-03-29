@@ -1,108 +1,220 @@
 import * as React from "react";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
+export default async function HomePage() {
+  const session = await auth();
 
-export default async function LandingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const { q: query } = await searchParams;
-  
-  const jobs = await db.job.findMany({
-    where: {
-      status: 'Open',
-      ...(query && {
-        OR: [
-          { title: { contains: query, mode: 'insensitive' } },
-          { company: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-          { location: { contains: query, mode: 'insensitive' } },
-        ],
-      }),
+  // 1. Kéo danh sách việc làm mới nhất (Featured Jobs)
+  const featuredJobs = await db.job.findMany({
+    where: { status: "Open" },
+    take: 5,
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: {
+        include: { companyProfile: true },
+      },
     },
-    orderBy: { createdAt: 'desc' },
+  });
+
+  // 2. Đếm số lượng Job cho từng Category (Bằng cách tìm từ khóa trong Title)
+  const [designCount, engineerCount, marketingCount] = await Promise.all([
+    db.job.count({ where: { status: "Open", title: { contains: "design", mode: "insensitive" } } }),
+    db.job.count({ where: { status: "Open", title: { contains: "engineer", mode: "insensitive" } } }),
+    db.job.count({ where: { status: "Open", title: { contains: "marketing", mode: "insensitive" } } })
+  ]);
+
+  // 3. Lấy 3 từ khóa phổ biến dựa trên 3 Job mới nhất (để làm gợi ý dưới ô Search)
+  const popularKeywords = featuredJobs.slice(0, 3).map(job => {
+    // Cắt lấy 2 từ đầu tiên của Title cho ngắn gọn (VD: "Senior Frontend Developer" -> "Senior Frontend")
+    return job.title.split(' ').slice(0, 2).join(' ');
+  });
+
+  // 4. Kéo danh sách các Công ty (World-Class Teams)
+  const topCompanies = await db.companyProfile.findMany({
+    take: 5,
+    orderBy: { updatedAt: "desc" }
   });
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Navbar được render bởi PublicLayout - không cần inline header nữa */}
+    <div className="flex flex-col min-h-screen bg-surface font-body">
+      {/* ================= HERO SECTION ================= */}
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden bg-primary text-white">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container">
+          {/* Thay url ảnh nền bằng ảnh của bạn nếu muốn */}
+          <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop" alt="Hero Background" className="w-full h-full object-cover mix-blend-overlay opacity-20 grayscale" />
+        </div>
+        
+        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center lg:text-left flex flex-col items-center lg:items-start">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black font-headline tracking-tight mb-6 max-w-3xl leading-tight">
+            Định hướng <span className="text-secondary-fixed">Sự nghiệp</span><br />Vững bước Tương lai.
+          </h1>
+          <p className="text-lg md:text-xl text-white/80 font-medium mb-10 max-w-2xl">
+            Khám phá hàng ngàn cơ hội việc làm từ các công ty công nghệ và startup đổi mới sáng tạo hàng đầu.
+          </p>
 
-      <main className="flex-1 bg-zinc-50 dark:bg-zinc-950">
-        <section className="bg-blue-600 py-20 text-white">
-          <div className="container mx-auto px-4 text-center space-y-6">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">Find your next dream job</h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto">
-              Explore thousands of job opportunities from top companies around the world.
-            </p>
-            <div className="max-w-2xl mx-auto">
-              <form action="/" method="GET" className="flex gap-2">
-                <Input
-                  name="q"
-                  placeholder="Job title, keywords, or company..."
-                  defaultValue={query}
-                  className="bg-white text-zinc-900 h-12"
-                />
-                <Button type="submit" size="lg" className="bg-zinc-900 hover:bg-zinc-800 text-white">
-                  Search
-                </Button>
-              </form>
+          {/* Form Tìm kiếm (Tạm thời là UI tĩnh) */}
+          <div className="w-full max-w-3xl bg-white p-2 rounded-2xl flex flex-col md:flex-row gap-2 shadow-2xl">
+            <div className="flex-1 flex items-center px-4">
+              <span className="material-symbols-outlined text-outline">work</span>
+              <input type="text" placeholder="Chức danh, từ khóa..." className="w-full bg-transparent border-none focus:ring-0 text-on-surface ml-2" />
+            </div>
+            <button className="bg-primary text-white px-8 py-4 rounded-xl font-bold font-headline hover:bg-primary-container transition-all">
+              Tìm việc ngay
+            </button>
+          </div>
+
+          {/* Gợi ý tìm kiếm ĐỘNG */}
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm font-medium">
+            <span className="text-white/60">Phổ biến:</span>
+            {popularKeywords.length > 0 ? popularKeywords.map((kw, i) => (
+              <span key={i} className="text-white hover:underline cursor-pointer border-b border-white/30 pb-0.5">{kw}</span>
+            )) : (
+              <span className="text-white">Lập trình viên, Designer, Marketing</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= DYNAMIC CATEGORIES ================= */}
+      <section className="max-w-7xl mx-auto px-6 w-full -mt-10 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+            <div>
+              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Design & Creative</h3>
+              <p className="text-on-surface-variant text-sm">{designCount} vị trí đang mở</p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined">palette</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+            <div>
+              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Engineering</h3>
+              <p className="text-on-surface-variant text-sm">{engineerCount} vị trí đang mở</p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined">code</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+            <div>
+              <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Marketing</h3>
+              <p className="text-on-surface-variant text-sm">{marketingCount} vị trí đang mở</p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-tertiary/10 text-tertiary flex items-center justify-center group-hover:bg-tertiary group-hover:text-white transition-colors">
+              <span className="material-symbols-outlined">trending_up</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= FEATURED JOBS ================= */}
+      <section className="max-w-7xl mx-auto px-6 py-20 w-full">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <span className="text-xs font-bold tracking-widest uppercase text-outline">Cơ hội nghề nghiệp</span>
+            <h2 className="text-3xl font-black font-headline text-on-surface mt-2">Việc làm Nổi bật</h2>
+          </div>
+          <Link href="/jobs" className="text-primary font-bold hover:underline hidden md:block">Xem tất cả</Link>
+        </div>
+
+        <div className="space-y-4">
+          {featuredJobs.length === 0 ? (
+            <p className="text-center py-10 text-on-surface-variant">Hiện chưa có tin tuyển dụng nào.</p>
+          ) : (
+            featuredJobs.map((job) => {
+              const companyName = job.user.companyProfile?.companyName || job.company;
+              const companyLogo = job.user.companyProfile?.logoUrl;
+              
+              return (
+                <div key={job.id} className="bg-white p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md border border-outline-variant/15 transition-all group">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center shrink-0 overflow-hidden text-primary font-bold text-xl font-headline">
+                      {companyLogo ? (
+                        <img src={companyLogo} alt={companyName} className="w-full h-full object-cover" />
+                      ) : (
+                        companyName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <Link href={`/jobs/${job.id}`}>
+                        <h3 className="text-xl font-bold font-headline text-on-surface group-hover:text-primary transition-colors">{job.title}</h3>
+                      </Link>
+                      <p className="text-on-surface-variant text-sm mt-1">{companyName} • {job.location || "Từ xa"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    {job.salary && (
+                      <span className="px-4 py-1.5 bg-primary-fixed text-primary rounded-full text-xs font-bold hidden lg:block">
+                        {job.salary}
+                      </span>
+                    )}
+                    <span className="text-xs text-outline font-medium mr-2">{new Date(job.createdAt).toLocaleDateString('vi-VN')}</span>
+                    <Link href={`/jobs/${job.id}`}>
+                      <button className="bg-surface-container-low text-primary px-6 py-2.5 rounded-xl font-bold hover:bg-primary hover:text-white transition-all border border-outline-variant/20">
+                        Chi tiết
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </section>
+
+      {/* ================= WORLD-CLASS TEAMS (Dynamic Companies) ================= */}
+      {topCompanies.length > 0 && (
+        <section className="bg-surface-container-low py-20 w-full">
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <h2 className="text-3xl font-black font-headline text-on-surface mb-2">Làm việc cùng những đội ngũ hàng đầu</h2>
+            <p className="text-on-surface-variant mb-12">Khám phá các doanh nghiệp ưu tiên văn hóa, sự phát triển và đổi mới.</p>
+            
+            <div className="flex flex-wrap justify-center gap-6">
+              {topCompanies.map((company) => (
+                <div key={company.id} className="bg-white w-40 h-40 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col items-center justify-center p-4 hover:-translate-y-1 transition-all">
+                  <div className="w-12 h-12 rounded-full bg-primary/5 text-primary flex items-center justify-center text-xl font-bold font-headline mb-3 overflow-hidden">
+                     {company.logoUrl ? (
+                        <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-cover" />
+                      ) : (
+                        company.companyName.charAt(0).toUpperCase()
+                      )}
+                  </div>
+                  <h4 className="font-bold text-sm text-on-surface text-center line-clamp-1">{company.companyName}</h4>
+                </div>
+              ))}
             </div>
           </div>
         </section>
+      )}
 
-        <section className="container mx-auto py-12 px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">{query ? `Results for "${query}"` : "Latest Job Openings"}</h2>
-            <p className="text-zinc-500">{jobs.length} jobs found</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {jobs.length === 0 ? (
-              <div className="text-center py-20 bg-white dark:bg-zinc-900 border rounded-xl">
-                <p className="text-zinc-500">No open jobs found matching your criteria.</p>
-              </div>
-            ) : (
-              jobs.map((job) => (
-                <Link
-                  key={job.id}
-                  href={`/jobs/${job.id}`}
-                  className="block bg-white dark:bg-zinc-900 p-6 rounded-xl border hover:border-blue-500 transition-all shadow-sm group"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">{job.title}</h3>
-                      <div className="flex flex-wrap gap-4 mt-2 text-zinc-600 dark:text-zinc-400 text-sm">
-                        <span className="font-medium text-zinc-900 dark:text-zinc-200">{job.company}</span>
-                        <span>•</span>
-                        <span>{job.location}</span>
-                        {job.salary && (
-                          <>
-                            <span>•</span>
-                            <span>{job.salary}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-sm text-zinc-500">
-                      Posted {new Date(job.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </Link>
-              ))
-            )}
+      {/* ================= CTA BANNER (Chỉ hiện khi chưa đăng nhập) ================= */}
+      {!session?.user && (
+        <section className="max-w-7xl mx-auto px-6 py-20 w-full">
+          <div className="bg-primary rounded-3xl p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-10 overflow-hidden relative shadow-2xl shadow-primary/20">
+            <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none"></div>
+            <div className="relative z-10 md:w-1/2">
+              <h2 className="text-3xl md:text-4xl font-black font-headline text-white mb-4 leading-tight">
+                Sẵn sàng tìm kiếm <br/>công việc mơ ước?
+              </h2>
+              <p className="text-white/80 mb-8 font-medium">
+                Tham gia cùng hàng ngàn chuyên gia đã tìm thấy bước tiến tiếp theo trong sự nghiệp của họ với RecruitSync.
+              </p>
+              <Link href="/register">
+                <button className="bg-secondary-fixed text-on-secondary-fixed px-8 py-4 rounded-xl font-bold font-headline hover:brightness-105 transition-all shadow-lg">
+                  Tạo tài khoản miễn phí
+                </button>
+              </Link>
+            </div>
           </div>
         </section>
-      </main>
-
-      <footer className="border-t py-12 bg-white dark:bg-zinc-950 dark:border-zinc-800">
-        <div className="container mx-auto px-4 text-center text-zinc-500 text-sm">
-          <p>© 2026 RecruitSync. All rights reserved.</p>
-        </div>
-      </footer>
+      )}
     </div>
   );
 }

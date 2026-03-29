@@ -11,8 +11,8 @@ const registerSchema = z.object({
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
   name: z.string().min(2, "Tên phải có ít nhất 2 ký tự"),
   role: z.enum(["HR", "CANDIDATE"], {
-    errorMap: () => ({ message: "Vai trò phải là HR hoặc CANDIDATE" }),
-  }),
+  message: "Vai trò phải là HR hoặc CANDIDATE",
+}),
   phone: z.string().optional(), // Phone là tùy chọn
 });
 

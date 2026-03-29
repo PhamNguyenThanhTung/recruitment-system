@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { fileValidation } from '@/lib/validations';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { sendNewApplicationNotificationEmail } from '@/lib/email';
 import { NextResponse, NextRequest } from 'next/server';
 
 /**
@@ -57,6 +58,14 @@ export async function POST(request: NextRequest) {
     // Kiểm tra job tồn tại
     const job = await db.job.findUnique({
       where: { id: jobId },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!job) {
@@ -115,6 +124,23 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    const appBaseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.APP_URL ||
+      'http://localhost:3000';
+    const applicationUrl = `${appBaseUrl}/applications/${application.id}`;
+
+    // Fire-and-forget: không block response chính nếu gửi email gặp lỗi.
+    void sendNewApplicationNotificationEmail({
+      to: job.user.email,
+      hrName: job.user.name,
+      jobTitle: job.title,
+      candidateName: session.user.name || null,
+      applicationUrl,
+    }).catch((emailError) => {
+      console.error('Send new application email error:', emailError);
     });
 
     return NextResponse.json(application, { status: 201 });

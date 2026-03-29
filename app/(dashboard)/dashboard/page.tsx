@@ -3,19 +3,11 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { HRDashboard } from "@/components/dashboard/HRDashboard";
 
 export default async function DashboardOverviewPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-
-  // Kéo dữ liệu thật từ Database cho các thẻ thống kê
-  const activeJobsCount = await db.job.count({
-    where: { userId: session.user.id, status: "Open" }
-  });
-
-  const totalApplicantsCount = await db.application.count({
-    where: { job: { userId: session.user.id } }
-  });
 
   // Lấy 4 Job mới nhất để hiển thị ra bảng
   const recentJobs = await db.job.findMany({
@@ -27,68 +19,15 @@ export default async function DashboardOverviewPage() {
     }
   });
 
+  const totalApplicantsCount = await db.application.count({
+    where: { job: { userId: session.user.id } },
+  });
+
   return (
     <>
-      {/* ================= HERO STATS GRID ================= */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Active Jobs */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] flex flex-col relative overflow-hidden group border border-outline-variant/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-primary/10 rounded-xl text-primary">
-              <span className="material-symbols-outlined">work</span>
-            </div>
-            <span className="text-xs font-bold text-secondary flex items-center gap-1">
-              <span className="material-symbols-outlined text-xs">trending_up</span> Mở tuyển
-            </span>
-          </div>
-          <p className="text-on-surface-variant text-sm font-semibold mb-1">Công việc đang mở</p>
-          <h3 className="text-3xl font-headline font-extrabold text-on-surface">{activeJobsCount}</h3>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-            <span className="material-symbols-outlined text-8xl" style={{ fontVariationSettings: "'FILL' 1" }}>work</span>
-          </div>
-        </div>
-
-        {/* Card 2: Applicants */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] flex flex-col relative overflow-hidden group border border-outline-variant/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-secondary/10 rounded-xl text-secondary">
-              <span className="material-symbols-outlined">person_search</span>
-            </div>
-          </div>
-          <p className="text-on-surface-variant text-sm font-semibold mb-1">Tổng ứng viên</p>
-          <h3 className="text-3xl font-headline font-extrabold text-on-surface">{totalApplicantsCount}</h3>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-            <span className="material-symbols-outlined text-8xl" style={{ fontVariationSettings: "'FILL' 1" }}>person_search</span>
-          </div>
-        </div>
-
-        {/* Card 3: Interviews (Dữ liệu tĩnh UI) */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] flex flex-col relative overflow-hidden group border border-outline-variant/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-tertiary/10 rounded-xl text-tertiary">
-              <span className="material-symbols-outlined">calendar_today</span>
-            </div>
-          </div>
-          <p className="text-on-surface-variant text-sm font-semibold mb-1">Lịch phỏng vấn tuần này</p>
-          <h3 className="text-3xl font-headline font-extrabold text-on-surface">3</h3>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-            <span className="material-symbols-outlined text-8xl" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_today</span>
-          </div>
-        </div>
-
-        {/* Card 4: Views (Dữ liệu tĩnh UI) */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] flex flex-col relative overflow-hidden group border border-outline-variant/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-primary-container/10 rounded-xl text-primary-container">
-              <span className="material-symbols-outlined">visibility</span>
-            </div>
-          </div>
-          <p className="text-on-surface-variant text-sm font-semibold mb-1">Lượt xem tin</p>
-          <h3 className="text-3xl font-headline font-extrabold text-on-surface">342</h3>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-            <span className="material-symbols-outlined text-8xl" style={{ fontVariationSettings: "'FILL' 1" }}>visibility</span>
-          </div>
-        </div>
+      {/* Thống kê + biểu đồ (Recharts) */}
+      <section className="mb-10">
+        <HRDashboard />
       </section>
 
       {/* ================= MAIN CONTENT GRID ================= */}

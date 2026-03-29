@@ -83,9 +83,10 @@ export default function JobApplyPage() {
       }
 
       // Nộp đơn thành công
+      
       setSuccess(true);
       setTimeout(() => {
-        router.push('/candidate/dashboard');
+        router.back(); // Lệnh này sẽ đưa user về đúng trang họ vừa xem trước đó
       }, 2000);
     } catch (err) {
       setError('Lỗi server. Vui lòng thử lại sau.');

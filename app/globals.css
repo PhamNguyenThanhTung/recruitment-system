@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-/* 1. ĐƯA TOÀN BỘ MÀU SẮC VÀ FONT VÀO @theme ĐỂ TAILWIND V4 NHẬN DIỆN */
+/* ==============================================
+   1. CẤU HÌNH THEME CHO TAILWIND V4
+   ============================================== */
 @theme {
   --color-primary: #0059bb;
   --color-primary-container: #0070ea;
@@ -50,36 +52,56 @@
   --color-outline: #717786;
   --color-outline-variant: #c1c6d7;
 
-  /* Nối font từ Next.js Google Font vào Tailwind */
-  --font-headline: var(--font-headline);
-  --font-body: var(--font-body);
+  /* Kết nối font từ Google Fonts Next.js */
+  --font-headline: var(--font-headline), "Plus Jakarta Sans", sans-serif;
+  --font-body: var(--font-body), "Manrope", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
+/* ==============================================
+   2. BASE STYLES (GHI ĐÈ DEFAULT CỦA NEXT.JS)
+   ============================================== */
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f7f9fb; /* Gắn cứng màu nền theo Blue Ocean */
+    --foreground: #191c1e; /* Gắn cứng màu chữ theo Blue Ocean */
+  }
+  
+  /* Tạm thời vô hiệu hóa Dark Mode mặc định để bảo vệ giao diện Blue Ocean */
+  .dark {
+    --background: #f7f9fb;
+    --foreground: #191c1e;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-body {
-  background-color: var(--color-surface);
-  color: var(--color-on-surface);
-  font-family: var(--font-body), sans-serif;
-}
-
-/* 2. CUSTOM CLASSES CHUẨN HTML CŨ */
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-.glass-nav {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-}
-.hero-gradient {
-  background: linear-gradient(135deg, #0059bb 0%, #0070ea 100%);
-}
-.asymmetric-shape {
-  clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+/* ==============================================
+   3. CUSTOM UTILITIES (GLASSMORPHISM & ICONS)
+   ============================================== */
+@layer utilities {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+    display: inline-flex;
+  }
+  
+  .glass-nav {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .hero-gradient {
+    background: linear-gradient(135deg, #0059bb 0%, #0070ea 100%);
+  }
+  
+  .asymmetric-shape {
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 0% 100%);
+  }
 }

@@ -92,7 +92,8 @@ export default function PublicLayout({
         </div>
       </nav>
 
-      <main className="flex-1">{children}</main>
+      {/* pt-20 = 80px: đẩy nội dung xuống dưới navbar cố định, tránh bị đè */}
+      <main className="flex-1 pt-20">{children}</main>
     </div>
   );
 }

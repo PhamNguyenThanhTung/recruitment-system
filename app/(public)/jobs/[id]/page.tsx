@@ -172,7 +172,7 @@ export default async function JobDetailPage({
                   <>
                     <h3 className="text-2xl font-extrabold font-headline mb-2">Đã ứng tuyển</h3>
                     <p className="text-primary-fixed/80 text-sm mb-8 leading-relaxed">Bạn đã nộp CV cho vị trí này. Hãy theo dõi trạng thái trong Dashboard.</p>
-                    <Link href="/candidate/dashboard">
+                    <Link href="/candidate/profile">
                       <button className="w-full bg-surface-container-low text-primary font-headline font-extrabold py-4 rounded-xl mb-4 transition-all">
                         Xem đơn ứng tuyển
                       </button>

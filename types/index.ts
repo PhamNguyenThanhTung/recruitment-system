@@ -25,6 +25,19 @@ export interface Job {
   createdAt: Date;
 }
 
+export type ApplicationStatus = "pending" | "reviewed" | "accepted" | "rejected" | "interview";
+
+export interface Application {
+  id: string;
+  userId: string;
+  jobId: string;
+  job: Job;
+  status: ApplicationStatus;
+  resume?: string;
+  coverLetter?: string;
+  appliedAt: Date;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;

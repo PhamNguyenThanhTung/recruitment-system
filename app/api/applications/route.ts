@@ -90,8 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload CV lên Cloudinary
-    const buffer = Buffer.from(await cvFile.arrayBuffer());
-    const cvFileUrl = await uploadToCloudinary(buffer, 'cv_uploads');
+    const cvFileUrl = await uploadToCloudinary(cvFile, 'cv_uploads');
 
     // Tạo Application record
     const application = await db.application.create({

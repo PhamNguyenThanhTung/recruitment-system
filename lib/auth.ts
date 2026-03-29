@@ -11,11 +11,13 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
+      phone?: string; // 🔥 THÊM DÒNG NÀY
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: string;
+    phone?: string; // 🔥 THÊM DÒNG NÀY
   }
 }
 
@@ -56,17 +58,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          image: user.image, // 🔥 BỔ SUNG: Lấy ảnh từ DB khi mới đăng nhập
+          phone: user.phone, // 🔥 BỔ SUNG: Lấy số điện thoại từ DB khi mới đăng nhập
         };
       },
     }),
   ],
   callbacks: {
     // Callback xử lý dữ liệu Token JWT
-    jwt({ token, user }) {
+    // 🔥 BỔ SUNG: Thêm tham số `trigger` và `session` để hứng lệnh update từ Frontend
+    jwt({ token, user, trigger, session }) {
+      // 1. Khi người dùng mới đăng nhập
       if (user) {
         token.role = user.role;
         token.id = user.id;
+        token.picture = user.image; // Lưu ảnh vào token (NextAuth dùng chữ 'picture')
+        token.phone = user.phone; // 🔥 BỔ SUNG: Lưu số điện thoại vào token
+      
       }
+      
+      // 2. Khi Frontend gọi hàm `update({ image: "link_moi" })`
+      if (trigger === "update" && session) {
+        if (session.image) token.picture = session.image;
+        if (session.phone) token.phone = session.phone; // 🔥 THÊM DÒNG NÀY: Cập nhật SĐT mới từ form
+        
+      }
+      
       return token;
     },
     // Callback xử lý dữ liệu Session
@@ -74,6 +91,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.role = token.role as string;
         session.user.id = token.id as string;
+        session.user.image = token.picture as string | null | undefined; // 🔥 BỔ SUNG: Đẩy ảnh ra UI
+        session.user.phone = token.phone as string | undefined; // 🔥 THÊM DÒNG NÀY: Đẩy SĐT ra UI
       }
       return session;
     },

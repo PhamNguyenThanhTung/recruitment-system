@@ -9,15 +9,25 @@ import CandidateEditForm from "@/components/forms/CandidateEditForm";
 
 export default function CandidateProfilePage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  const router = useRouter(); // FIX 1: Thêm dòng này
   
-  // Quản lý 3 trạng thái hiển thị: overview | apps | edit
   const [activeTab, setActiveTab] = useState<'overview' | 'apps' | 'edit'>('overview');
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // State quản lý dữ liệu hiển thị tức thì (Live)
+  const [liveProfile, setLiveProfile] = useState({
+    address: "",
+    skills: "",
+    bio: "",
+    avatar: ""
+  });
+
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
     
     const fetchData = async () => {
       try {
@@ -34,11 +44,21 @@ export default function CandidateProfilePage() {
         const allJobs = recJobsRaw.success ? recJobsRaw.data : [];
         const myApps = Array.isArray(appsRaw) ? appsRaw : (appsRaw.data || []);
 
+        // Lọc job chưa nộp
         const recommendedJobs = allJobs
           .filter((job: any) => !myApps.some((app: any) => app.jobId === job.id))
           .slice(0, 2);
         
+        // Cập nhật data tổng
         setData({ profile, applications: myApps, recommendedJobs });
+        
+        // Cập nhật profile hiển thị ở sidebar
+        setLiveProfile({
+          address: profile?.address || "",
+          skills: profile?.skills || "",
+          bio: profile?.bio || "",
+          avatar: session?.user?.image || ""
+        });
       } catch (err) {
         console.error("Lỗi fetch data", err);
       } finally {
@@ -47,18 +67,19 @@ export default function CandidateProfilePage() {
     };
 
     if (session?.user) fetchData();
-  }, [session, status, router]);
+  }, [session, status, router]); // FIX 2: Thêm router vào đây
 
-  if (isLoading || !data) return <div className="pt-32 text-center font-bold">Đang đồng bộ dữ liệu...</div>;
+  if (isLoading || !data) return <div className="pt-32 text-center font-bold">Đang đồng bộ dữ liệu Blue Ocean...</div>;
 
   const { profile, applications, recommendedJobs } = data;
 
+  // Tính % hoàn thiện hồ sơ
   const completionCriteria = [
-    { label: "Địa chỉ liên hệ", isDone: !!profile?.address },
-    { label: "Kỹ năng chuyên môn", isDone: !!profile?.skills },
-    { label: "Giới thiệu bản thân", isDone: !!profile?.bio },
+    { label: "Địa chỉ liên hệ", isDone: !!liveProfile.address },
+    { label: "Kỹ năng chuyên môn", isDone: !!liveProfile.skills },
+    { label: "Giới thiệu bản thân", isDone: !!liveProfile.bio },
     { label: "Hồ sơ CV (PDF)", isDone: !!profile?.defaultCvUrl },
-    { label: "Ảnh đại diện", isDone: !!session?.user?.image },
+    { label: "Ảnh đại diện", isDone: !!liveProfile.avatar },
   ];
   const profileCompletion = completionCriteria.filter(c => c.isDone).length * 20;
 
@@ -90,8 +111,8 @@ export default function CandidateProfilePage() {
         <aside className="col-span-12 lg:col-span-3 space-y-6">
           <div className="bg-white p-8 rounded-[32px] shadow-sm border border-outline-variant/10 text-center relative overflow-hidden">
             <div className="w-24 h-24 rounded-full border-4 border-secondary-container p-1 mx-auto mb-4 overflow-hidden">
-               {session?.user?.image ? (
-                 <img src={session.user.image} className="w-full h-full object-cover rounded-full" alt="avatar" />
+               {liveProfile.avatar ? (
+                 <img src={liveProfile.avatar} className="w-full h-full object-cover rounded-full" alt="avatar" />
                ) : (
                  <div className="w-full h-full bg-primary text-white flex items-center justify-center text-3xl font-black rounded-full">
                    {session?.user?.name?.charAt(0)}
@@ -99,6 +120,9 @@ export default function CandidateProfilePage() {
                )}
             </div>
             <h3 className="headline-font font-black text-xl text-on-surface">{session?.user?.name}</h3>
+            <p className="text-[10px] font-black uppercase text-primary mt-2 tracking-widest leading-relaxed">
+              {liveProfile.address || "Vị trí chưa cập nhật"}
+            </p>
             
             <nav className="mt-8 space-y-2 text-left">
               <button 
@@ -108,7 +132,6 @@ export default function CandidateProfilePage() {
                 <span className="material-symbols-outlined">grid_view</span> Tổng quan
               </button>
               
-              {/* NÚT MỚI: ĐƠN ỨNG TUYỂN */}
               <button 
                 onClick={() => setActiveTab('apps')}
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'apps' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -126,7 +149,7 @@ export default function CandidateProfilePage() {
           </div>
 
           <div className="bg-white p-8 rounded-[32px] border border-outline-variant/5 shadow-sm">
-            <h4 className="headline-font font-black text-[10px] uppercase text-slate-400 mb-4">Hoàn thiện {profileCompletion}%</h4>
+            <h4 className="headline-font font-black text-[10px] uppercase text-slate-400 mb-4 tracking-widest">Hoàn thiện {profileCompletion}%</h4>
             <div className="w-full bg-slate-100 rounded-full h-2 mb-6 overflow-hidden">
               <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${profileCompletion}%` }} />
             </div>
@@ -147,52 +170,54 @@ export default function CandidateProfilePage() {
         <section className="col-span-12 lg:col-span-6 space-y-8">
           {activeTab === 'edit' ? (
             <div className="bg-white p-2 rounded-[40px] shadow-sm border border-slate-100">
-               <CandidateEditForm initialData={profile} user={session?.user} />
+               <CandidateEditForm 
+                  initialData={data.profile} 
+                  user={session?.user} 
+                  onProfileUpdate={(newData: any) => setLiveProfile(prev => ({...prev, ...newData}))}
+               />
             </div>
           ) : activeTab === 'apps' ? (
-            /* TRANG DANH SÁCH TẤT CẢ ĐƠN ỨNG TUYỂN */
             <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden">
                 <div className="p-8 border-b border-slate-50">
                   <h3 className="font-black text-2xl">Tất cả đơn ứng tuyển</h3>
-                  <p className="text-slate-400 text-sm mt-1">Bạn đã nộp tổng cộng {applications.length} đơn.</p>
+                  <p className="text-slate-400 text-sm mt-1 font-medium">Bạn đã nộp tổng cộng {applications.length} đơn.</p>
                 </div>
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-50 text-sm">
                   {applications.length > 0 ? applications.map((app: any) => (
                     <div key={app.id} className="p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
                       <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-primary font-black text-2xl">{app.job.title.charAt(0)}</div>
+                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-primary font-black text-2xl shadow-inner">{app.job.title.charAt(0)}</div>
                         <div>
                           <h4 className="font-black text-on-surface text-lg">{app.job.title}</h4>
-                          <p className="text-sm text-slate-400 font-bold uppercase">{app.job.company}</p>
+                          <p className="text-sm text-slate-400 font-bold uppercase tracking-tight">{app.job.company}</p>
                           <p className="text-xs text-slate-300 mt-1 italic">Ngày nộp: {new Date(app.appliedAt).toLocaleDateString('vi-VN')}</p>
                         </div>
                       </div>
                       <span className="px-6 py-2 bg-primary/10 text-primary text-[11px] font-black uppercase rounded-2xl border border-primary/20">{app.status}</span>
                     </div>
                   )) : (
-                    <div className="p-20 text-center text-slate-300 font-bold italic">Chưa có dữ liệu.</div>
+                    <div className="p-20 text-center text-slate-300 font-bold italic">Chưa có dữ liệu ứng tuyển nào.</div>
                   )}
                 </div>
             </div>
           ) : (
-            /* TRANG TỔNG QUAN (OVERVIEW) */
             <>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white p-6 rounded-3xl border-l-4 border-primary shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Đã nộp</p>
-                  <h2 className="text-3xl font-black text-primary">{applications.length || "0"}</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã nộp</p>
+                  <h2 className="text-3xl font-black text-primary">{applications.length}</h2>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border-l-4 border-emerald-500 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Phỏng vấn</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Phỏng vấn</p>
                   <h2 className="text-3xl font-black text-emerald-600">00</h2>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border-l-4 border-slate-300 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Đã xem</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã xem</p>
                   <h2 className="text-3xl font-black text-on-surface">00</h2>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden">
+              <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden text-sm">
                 <div className="p-8 border-b border-slate-50 flex justify-between items-center">
                   <h3 className="font-black text-xl">Đơn ứng tuyển gần đây</h3>
                   <button 
@@ -220,7 +245,7 @@ export default function CandidateProfilePage() {
                 </div>
               </div>
 
-              <div className="space-y-6 pt-4">
+              <div className="space-y-6 pt-4 text-sm">
                 <h3 className="headline-font font-black text-xl px-2">Gợi ý việc làm dành cho bạn</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {recommendedJobs?.map((job: any, idx: number) => (
@@ -265,7 +290,7 @@ export default function CandidateProfilePage() {
             <h3 className="text-lg font-black mb-8 flex items-center gap-3">
               <span className="material-symbols-outlined text-blue-600">notifications_active</span> Thông báo
             </h3>
-            <div className="space-y-6">
+            <div className="space-y-6 text-sm">
               {applications.slice(0, 2).map((app: any) => (
                 <div key={app.id} className="flex gap-4 items-start border-b border-slate-50 pb-4 last:border-0 group">
                   <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -275,7 +300,7 @@ export default function CandidateProfilePage() {
                     <p className="text-[11px] font-bold text-slate-700 leading-tight italic">
                        Đơn <span className="text-blue-600">{app.job.title}</span> đã chuyển trạng thái.
                     </p>
-                    <p className="text-[9px] font-black text-slate-300 mt-2">Hệ thống</p>
+                    <p className="text-[9px] font-black text-slate-300 mt-2 tracking-widest">HỆ THỐNG</p>
                   </div>
                 </div>
               ))}

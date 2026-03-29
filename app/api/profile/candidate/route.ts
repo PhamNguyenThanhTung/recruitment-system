@@ -1,119 +1,91 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { candidateProfileSchema } from '@/lib/validations';
 import { NextRequest, NextResponse } from 'next/server';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
-/**
- * GET /api/profile/candidate
- * 
- * Endpoint để lấy hồ sơ ứng viên của Candidate hiện tại.
- * Yêu cầu: Người dùng phải đăng nhập và có role 'CANDIDATE'
- * 
- * @returns CandidateProfile nếu tồn tại, null nếu chưa có
- */
 export async function GET(request: NextRequest) {
   try {
-    // Lấy session từ NextAuth
     const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Kiểm tra xem người dùng đã đăng nhập chưa
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Vui lòng đăng nhập' },
-        { status: 401 }
-      );
-    }
-
-    // Kiểm tra role là CANDIDATE
-    if (session.user.role !== 'CANDIDATE') {
-      return NextResponse.json(
-        { error: 'Chỉ ứng viên mới được truy cập tài nguyên này' },
-        { status: 403 }
-      );
-    }
-
-    // Tìm hồ sơ ứng viên
-    const candidateProfile = await db.candidateProfile.findUnique({
+    const profile = await db.candidateProfile.findUnique({
       where: { userId: session.user.id },
     });
 
-    return NextResponse.json(candidateProfile || null, { status: 200 });
+    return NextResponse.json(profile || null);
   } catch (error) {
-    console.error('❌ Lỗi GET /api/profile/candidate:', error);
-    return NextResponse.json(
-      { error: 'Không thể tải hồ sơ ứng viên' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/profile/candidate
- * 
- * Endpoint để cập nhật hoặc tạo hồ sơ ứng viên.
- * Sử dụng upsert: nếu hồ sơ tồn tại thì update, chưa tồn tại thì create.
- * Yêu cầu: Người dùng phải đăng nhập và có role 'CANDIDATE'
- * 
- * @param body - Dữ liệu hồ sơ ứng viên (address?, skills?, bio?)
- * @returns CandidateProfile sau khi cập nhật/tạo
- */
 export async function POST(request: NextRequest) {
   try {
-    // Lấy session từ NextAuth
     const session = await auth();
-
-    // Kiểm tra xem người dùng đã đăng nhập chưa
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Vui lòng đăng nhập' },
-        { status: 401 }
-      );
+    if (!session?.user?.id || session.user.role !== 'CANDIDATE') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Kiểm tra role là CANDIDATE
-    if (session.user.role !== 'CANDIDATE') {
-      return NextResponse.json(
-        { error: 'Chỉ ứng viên mới được truy cập tài nguyên này' },
-        { status: 403 }
-      );
+    const formData = await request.formData();
+    
+    // 1. LẤY DỮ LIỆU TỪ FORM
+    const address = formData.get('address') as string;
+    const skills = formData.get('skills') as string;
+    const bio = formData.get('bio') as string;
+    const avatarFile = formData.get('avatar') as File | null;
+    const cvFile = formData.get('cv') as File | null;
+    const phone = formData.get('phone') as string;
+
+    let imageUrl = session.user.image; // Mặc định giữ ảnh cũ
+    let cvUrl = undefined;
+
+    // 2. GỌI HÀM HELPER ĐỂ UPLOAD FILE (Cực kỳ ngắn gọn)
+    if (avatarFile && avatarFile.size > 0) {
+      imageUrl = await uploadToCloudinary(avatarFile, "blue_ocean_avatars");
     }
 
-    // Lấy dữ liệu từ request body
-    const body = await request.json();
+    if (cvFile && cvFile.size > 0) {
+      cvUrl = await uploadToCloudinary(cvFile, "blue_ocean_cvs");
+    }
 
-    // Xác thực dữ liệu bằng schema
-    const validatedData = candidateProfileSchema.parse(body);
-
-    // Upsert hồ sơ ứng viên
+    // 3. CẬP NHẬT VÀO BẢNG CANDIDATE PROFILE
     const candidateProfile = await db.candidateProfile.upsert({
       where: { userId: session.user.id },
       update: {
-        address: validatedData.address || null,
-        skills: validatedData.skills || null,
-        bio: validatedData.bio || null,
+        address,
+        skills,
+        bio,
+        ...(cvUrl && { defaultCvUrl: cvUrl }), // Chỉ ghi đè nếu có link CV mới
       },
       create: {
         userId: session.user.id,
-        address: validatedData.address || null,
-        skills: validatedData.skills || null,
-        bio: validatedData.bio || null,
+        address,
+        skills,
+        bio,
+        defaultCvUrl: cvUrl || null,
       },
     });
 
-    return NextResponse.json(candidateProfile, { status: 200 });
+    // 4. CẬP NHẬT VÀO BẢNG USER (Để avatar đổi trên toàn hệ thống)
+    if (imageUrl && imageUrl !== session.user.image) {
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { image: imageUrl }
+      });
+    }
+    await db.user.update({
+  where: { id: session.user.id },
+  data: { 
+    ...(imageUrl && imageUrl !== session.user.image ? { image: imageUrl } : {}),
+    ...(phone ? { phone: phone } : {}) 
+  }
+});
+
+    return NextResponse.json({ success: true, data: candidateProfile, imageUrl });
+
   } catch (error: any) {
     console.error('❌ Lỗi POST /api/profile/candidate:', error);
-
-    // Xử lý lỗi validation
-    if (error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: 'Dữ liệu không hợp lệ', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
-      { error: 'Không thể cập nhật hồ sơ ứng viên' },
+      { error: 'Không thể cập nhật hồ sơ', details: error.message },
       { status: 500 }
     );
   }

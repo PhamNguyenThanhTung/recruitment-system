@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           image: user.image, // 🔥 BỔ SUNG: Lấy ảnh từ DB khi mới đăng nhập
-          phone: user.phone, // 🔥 BỔ SUNG: Lấy số điện thoại từ DB khi mới đăng nhập
+          phone: user.phone ?? undefined, // 🔥 BỔ SUNG: Lấy số điện thoại từ DB khi mới đăng nhập
         };
       },
     }),

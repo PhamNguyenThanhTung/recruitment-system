@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+// 🔥 IMPORT COMPONENT TÌM KIẾM
+import SearchForm from "@/components/home/Searchform";
 
 export default async function HomePage() {
   const session = await auth();
@@ -54,27 +56,6 @@ export default async function HomePage() {
           <p className="text-lg md:text-xl text-white/80 font-medium mb-10 max-w-2xl">
             Khám phá hàng ngàn cơ hội việc làm từ các công ty công nghệ và startup đổi mới sáng tạo hàng đầu.
           </p>
-
-          {/* Form Tìm kiếm (Tạm thời là UI tĩnh) */}
-          <div className="w-full max-w-3xl bg-white p-2 rounded-2xl flex flex-col md:flex-row gap-2 shadow-2xl">
-            <div className="flex-1 flex items-center px-4">
-              <span className="material-symbols-outlined text-outline">work</span>
-              <input type="text" placeholder="Chức danh, từ khóa..." className="w-full bg-transparent border-none focus:ring-0 text-on-surface ml-2" />
-            </div>
-            <button className="bg-primary text-white px-8 py-4 rounded-xl font-bold font-headline hover:bg-primary-container transition-all">
-              Tìm việc ngay
-            </button>
-          </div>
-
-          {/* Gợi ý tìm kiếm ĐỘNG */}
-          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm font-medium">
-            <span className="text-white/60">Phổ biến:</span>
-            {popularKeywords.length > 0 ? popularKeywords.map((kw, i) => (
-              <span key={i} className="text-white hover:underline cursor-pointer border-b border-white/30 pb-0.5">{kw}</span>
-            )) : (
-              <span className="text-white">Lập trình viên, Designer, Marketing</span>
-            )}
-          </div>
         </div>
       </section>
 

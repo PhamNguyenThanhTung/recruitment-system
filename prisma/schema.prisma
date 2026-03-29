@@ -5,8 +5,9 @@ generator client {
 
 // Cấu hình nguồn dữ liệu, sử dụng PostgreSQL và lấy URL từ biến môi trường
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // 🔥 Bắt buộc cho prisma migrate với Supabase Pooler
 }
 
 // ===== ENUM =====
@@ -14,6 +15,15 @@ datasource db {
 enum Role {
   HR        // Nhân viên HR
   CANDIDATE // Ứng viên
+}
+
+// Enum JobType: Định nghĩa các loại công việc
+enum JobType {
+  FULL_TIME  // Toàn thời gian
+  PART_TIME  // Bán thời gian
+  CONTRACT   // Hợp đồng
+  FREELANCE  // Freelance
+  INTERNSHIP // Thực tập
 }
 
 // ===== MODELS =====
@@ -33,6 +43,8 @@ model User {
   jobs      Job[]
   // Quan hệ một-nhiều với Application (một candidate nộp nhiều đơn)
   applications Application[]
+  // Quan hệ một-nhiều với SavedJob (một candidate có thể lưu nhiều job)
+  savedJobs SavedJob[]
 
   companyProfile   CompanyProfile?
   candidateProfile CandidateProfile?
@@ -80,6 +92,7 @@ model Job {
   requirements String?                        // Yêu cầu công việc (tùy chọn)
   salary       String?                        // Mức lương (tùy chọn)
   location     String                         // Địa điểm làm việc
+  jobType      JobType   @default(FULL_TIME) // Loại công việc
   deadline     DateTime?                      // Hạn chót nộp hồ sơ (tùy chọn)
   status       String    @default("Draft")    // Trạng thái tin (Draft, Open, Closed, v.v.)
   userId       String    @map("user_id")      // ID nhân viên HR đã tạo tin này
@@ -88,6 +101,8 @@ model Job {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Quan hệ một-nhiều với Application
   applications Application[]
+  // Quan hệ một-nhiều với SavedJob (một job có thể được lưu bởi nhiều candidate)
+  savedJobs    SavedJob[]
   
   createdAt    DateTime  @default(now()) @map("created_at") // Thời điểm tạo tin
 
@@ -109,4 +124,21 @@ model Application {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("applications") // Tên bảng trong cơ sở dữ liệu là 'applications'
+}
+
+// Model SavedJob: Đại diện cho việc làm được lưu (bookmark) bởi ứng viên
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")    // ID của ứng viên
+  jobId     String   @map("job_id")     // ID của công việc được lưu
+  createdAt DateTime @default(now()) @map("created_at") // Thời điểm lưu
+  
+  // Quan hệ với User (một candidate có thể lưu nhiều job)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Quan hệ với Job (một job có thể được lưu bởi nhiều candidate)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Đảm bảo một user không thể lưu cùng một job hai lần
+  @@unique([userId, jobId])
+  @@map("saved_jobs") // Tên bảng trong cơ sở dữ liệu là 'saved_jobs'
 }

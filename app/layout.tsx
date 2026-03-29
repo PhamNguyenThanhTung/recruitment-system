@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
+// 🔥 IMPORT NAVBAR VÀO ĐÂY
+import Navbar from "@/components/layout/Navbar"; 
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -25,7 +27,6 @@ export default function RootLayout({
       lang="vi"
       className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} ${manrope.variable} h-full antialiased`}
     >
-      {/* THÊM THẺ HEAD NÀY ĐỂ TẢI BỘ ICON GOOGLE */}
       <head>
         <link 
           rel="stylesheet" 
@@ -36,7 +37,15 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <SessionProvider>
           <ToastProvider />
-          {children}
+          
+          {/* 🔥 GẮN NAVBAR VÀO ĐÂY */}
+          <Navbar />
+
+          {/* Bao bọc content bằng main flex-1 để full chiều cao */}
+          <main className="flex-1">
+             {children}
+          </main>
+          
         </SessionProvider>
       </body>
     </html>

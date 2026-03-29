@@ -119,9 +119,8 @@ app/(dashboard)/
 #### 📌 **(public) - Khu vực công khai (Ứng viên)**
 ```
 app/(public)/
-├── layout.tsx                              # Layout công khai (fixed Navbar)
-│                                          # - Navbar cố định ở top
-│                                          # - <main className="pt-20"> để tránh đè header
+├── layout.tsx                              # Layout công khai
+│                                          # - Navbar với logo + job link + avatar/login
 │                                          # - Responsive design
 │
 ├── page.tsx                                # Trang chủ (Home)
@@ -129,31 +128,33 @@ app/(public)/
 │                                          # - Featured jobs section
 │                                          # - Categories: Design & Creative, Tech, Sales...
 │                                          # - Top companies showcase
+│                                          # - Call-to-action sections
+│
+├── candidate/
+│   └── profile/
+│       └── page.tsx                        # Hồ sơ ứng viên
+│                                          # - Left sidebar: avatar, nav, completion %
+│                                          # - Main: dashboard hoặc form chỉnh sửa
+│                                          # - Right sidebar: timeline cá nhân
+│                                          # - Recommended jobs
 │
 ├── jobs/                                   # Job listing
+│   ├── page.tsx (được render từ DB mà không cần file)
+│   │                                      # - Danh sách tất cả job (search, filter)
+│   │
 │   └── [id]/
 │       ├── page.tsx                        # Chi tiết job (public view)
 │       │                                  # - Job description, requirements
 │       │                                  # - Company info + logo
 │       │                                  # - Similar jobs recommendation
+│       │                                  # - Apply button / Applied badge
 │       │
 │       └── apply/
 │           └── page.tsx                    # Form ứng tuyển
-│                                          # - Upload CV, cover letter
-│                                          # - Submit
-│
-└── candidate/
-    └── profile/
-        ├── page.tsx                        # Server Component (fetch data)
-        │                                  # - Fetch profile + applications từ DB
-        │                                  # - Pass data vào ProfileClientWrapper
-        │
-        └── ProfileClientWrapper.tsx        # Client Component (UI + state)
-                                           # - State: isEditing boolean
-                                           # - Left sidebar: nav buttons
-                                           # - Main: Dashboard hoặc Form
-                                           # - Right sidebar: timeline
-                                           # - Render EditJobForm dựa trên isEditing
+│                                          # - Upload CV
+│                                          # - Cover letter (optional)
+│                                          # - Confirm & submit
+└── index.tsx (component)                   # (được import từ ui/)
 ```
 
 ---

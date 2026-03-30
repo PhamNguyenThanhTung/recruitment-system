@@ -1,18 +1,14 @@
-// File: app/(dashboard)/admin-jobs/new/page.tsx
 // 🛑 TUYỆT ĐỐI KHÔNG CÓ DÒNG "use client" Ở ĐÂY!
-
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
+import JobForm from "./JobForm";
 
-// Dùng dynamic import để "nhốt" cái Form lại, không cho nó chạy lúc Build
-const JobForm = dynamic(() => import("./JobForm"), { 
-  ssr: false, 
-});
+// 🔥 KIM BÀI MIỄN TỬ: Ép Next.js không được build tĩnh trang này, tránh mọi lỗi useSearchParams
+export const dynamic = "force-dynamic";
 
 export default function NewJobPage() {
   return (
-    // Mặc áo giáp Suspense ở cấp độ cao nhất
-    <Suspense fallback={<div className="p-20 text-center font-bold">Đang chuẩn bị biểu mẫu...</div>}>
+    // Bọc Suspense để "che mắt" thằng build worker nếu có useSearchParams ngầm
+    <Suspense fallback={<div className="p-20 text-center font-bold text-primary">Đang chuẩn bị biểu mẫu...</div>}>
       <JobForm />
     </Suspense>
   );

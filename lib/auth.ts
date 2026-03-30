@@ -2,6 +2,13 @@ import NextAuth, { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "./db";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+
+const sessionUpdateSchema = z.object({
+  image: z.url("Link ảnh không hợp lệ").optional(),
+  // regex sdt
+  phone: z.string().regex(/(84|0[3|5|7|8|9])+([0-9]{8})\b/, "Số điện thoại sai định dạng").optional(),
+})
 
 /**
  * Mở rộng các kiểu dữ liệu của NextAuth để bao gồm thông tin 'role' và 'id' của người dùng.
@@ -74,14 +81,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.picture = user.image; // Lưu ảnh vào token (NextAuth dùng chữ 'picture')
         token.phone = user.phone; // 🔥 BỔ SUNG: Lưu số điện thoại vào token
-      
       }
       
       // 2. Khi Frontend gọi hàm `update({ image: "link_moi" })`
       if (trigger === "update" && session) {
-        if (session.image) token.picture = session.image;
-        if (session.phone) token.phone = session.phone; // 🔥 THÊM DÒNG NÀY: Cập nhật SĐT mới từ form
-        
+        const parsed = sessionUpdateSchema.safeParse(session);
+
+        if (parsed.success) {
+          if (parsed.data.image) token.picture = parsed.data.image;
+          if (parsed.data.phone) token.phone = parsed.data.phone; 
+        } else {
+          console.error("Phát hiện payload update session không hợp lệ:", parsed.error);
+        }
       }
       
       return token;

@@ -89,25 +89,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
-  const statusOptions = [
-    { value: 'pending', label: 'Chờ xử lý' },
-    { value: 'reviewed', label: 'Đã xem' },
-    { value: 'interview', label: 'Phỏng vấn' },
-    { value: 'accepted', label: 'Được chấp nhận' },
-    { value: 'rejected', label: 'Bị từ chối' },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending': return 'bg-tertiary-fixed text-on-tertiary-fixed-variant';
-      case 'reviewed': return 'bg-surface-container-high text-on-surface-variant';
-      case 'interview': return 'bg-primary-fixed text-primary';
-      case 'accepted': return 'bg-secondary-fixed text-on-secondary-container';
-      case 'rejected': return 'bg-error-container text-on-error-container';
-      default: return 'bg-surface-variant text-on-surface-variant';
-    }
-  };
-
+  // ✅ PHẢI KHỚP TỪNG CHỮ CÁI VỚI PRISMA ENUM
+const statusOptions = [
+  { value: 'PENDING', label: 'Chờ xử lý' },
+  { value: 'REVIEWING', label: 'Đang xem xét' }, // 👈 Đổi REVIEWED thành REVIEWING
+  { value: 'INTERVIEWING', label: 'Phỏng vấn' }, // 👈 Đổi INTERVIEW thành INTERVIEWING
+  { value: 'OFFERED', label: 'Mời làm việc' },   // 👈 Đổi ACCEPTED thành OFFERED
+  { value: 'REJECTED', label: 'Bị từ chối' },
+];
+const getStatusColor = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING': return 'bg-tertiary-fixed text-on-tertiary-fixed-variant';
+    case 'REVIEWING': return 'bg-surface-container-high text-on-surface-variant';
+    case 'INTERVIEWING': return 'bg-primary-fixed text-primary';
+    case 'OFFERED': return 'bg-secondary-fixed text-on-secondary-container';
+    case 'REJECTED': return 'bg-error-container text-on-error-container';
+    default: return 'bg-surface-variant text-on-surface-variant';
+  }
+};
   // UI Trạng thái Loading / Lỗi
   if (isLoading) {
     return (

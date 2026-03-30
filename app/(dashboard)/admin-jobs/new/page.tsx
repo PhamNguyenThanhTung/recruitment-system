@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CldUploadWidget } from 'next-cloudinary';
-
+export const dynamic = 'force-dynamic';
 export function NewJobPageContent() {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);

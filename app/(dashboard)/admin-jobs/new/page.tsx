@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CldUploadWidget } from 'next-cloudinary';
 
- function NewJobPageContent() {
+export function NewJobPageContent() {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);

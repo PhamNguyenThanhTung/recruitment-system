@@ -24,29 +24,43 @@ export default async function JobsPage({
   const limit = 10;
   const skip = (currentPage - 1) * limit;
 
-  // === 1. GIAO CHO PRISMA XỬ LÝ TOÀN BỘ ĐIỀU KIỆN ===
+  // === 1. GIAO CHO PRISMA XỬ LÝ TOÀN BỘ ĐIỀU KIỆN (ĐÃ FIX LỖI FILTER) ===
   const where: Prisma.JobWhereInput = { status: "Open" };
+  const andConditions: Prisma.JobWhereInput[] = [];
 
+  // Lọc Từ khóa
   if (q) {
-    where.OR = [
-      { title: { contains: q, mode: "insensitive" } },
-      { company: { contains: q, mode: "insensitive" } },
-    ];
-  }
-  if (location) {
-    where.location = { contains: location, mode: "insensitive" };
-  }
-  if (jobType) {
-    where.jobType = { in: jobType.split(",") as any[] };
+    andConditions.push({
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { company: { contains: q, mode: "insensitive" } },
+      ],
+    });
   }
   
-  // 🔥 LỌC LƯƠNG TRỰC TIẾP DƯỚI DATABASE 🔥
+  // Lọc Địa điểm
+  if (location) {
+    andConditions.push({ location: { contains: location, mode: "insensitive" } });
+  }
+  
+  // Lọc Loại công việc
+  if (jobType) {
+    andConditions.push({ jobType: { in: jobType.split(",") as any[] } });
+  }
+  
+  // Lọc Lương (Tìm các Job có minSalary hoặc maxSalary thỏa mãn)
   if (filterMinSalary !== null) {
-    where.OR = [
-      ...(where.OR || []),
-      { minSalary: { gte: filterMinSalary } }, // Job có lương tối thiểu >= Yêu cầu
-      { maxSalary: { gte: filterMinSalary } }  // Hoặc mức lương tối đa chạm tới mức yêu cầu
-    ];
+    andConditions.push({
+      OR: [
+        { minSalary: { gte: filterMinSalary } }, 
+        { maxSalary: { gte: filterMinSalary } }  
+      ],
+    });
+  }
+
+  // Nếu có bất kỳ điều kiện lọc nào, nhét tất cả vào AND để bắt buộc thỏa mãn ĐỒNG THỜI
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   // === 2. GỌI DB ĐÚNG 1 LẦN (Lấy Data + Lấy Tổng số để phân trang) ===
@@ -88,7 +102,7 @@ export default async function JobsPage({
     isSavedByUser: savedJobIds.includes(job.id),
   }));
 
-  // === GIAO DIỆN (Giữ nguyên y hệt phần return của sếp) ===
+  // === GIAO DIỆN ===
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">

@@ -41,7 +41,7 @@ export default function Navbar() {
             <div className="flex items-center gap-4 pl-4 border-l border-slate-100">
               
               {/* Nếu là HR -> Đi tới Dashboard, Nếu là Ứng viên -> Đi tới Profile */}
-              <Link href={session.user.role === "HR" ? "/hr/dashboard" : "/candidate/profile"}>
+              <Link href={session.user.role === "HR" ? "/dashboard" : "/candidate/profile"}>
                 <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold overflow-hidden border-2 border-transparent hover:border-primary transition-all cursor-pointer shadow-sm">
                   {session.user.image ? (
                     <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />

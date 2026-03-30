@@ -1,11 +1,17 @@
 "use client";
-import { Suspense } from "react";
+
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CldUploadWidget } from 'next-cloudinary';
-export const dynamic = 'force-dynamic';
-export function NewJobPageContent() {
+import dynamic from "next/dynamic"; // 🔥 1. IMPORT CÔNG CỤ TẢI ĐỘNG CỦA NEXT.JS
+
+// 🔥 2. VŨ KHÍ TỐI THƯỢNG: Ép Next.js hoàn toàn phớt lờ Cloudinary lúc Build
+const CldUploadWidget = dynamic(
+  () => import('next-cloudinary').then((mod) => mod.CldUploadWidget),
+  { ssr: false } // Cờ này cực kỳ quan trọng, cấm chạy trên Server!
+);
+
+export default function NewJobPage() {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -16,7 +22,6 @@ export function NewJobPageContent() {
   const [previewLogoUrl, setPreviewLogoUrl] = React.useState("");
   
   const [isMounted, setIsMounted] = React.useState(false);
-  // 🔥 Thêm 2 state này để quản lý Tên công ty và Địa điểm (Có thể chỉnh sửa)
   const [previewCompany, setPreviewCompany] = React.useState("Đang tải...");
   const [previewLocation, setPreviewLocation] = React.useState("Đang tải...");
 
@@ -29,7 +34,6 @@ export function NewJobPageContent() {
         if (res.ok) {
           const profile = await res.json();
           if (profile) {
-            // Đổ dữ liệu DB vào state để làm giá trị mặc định cho Input
             setPreviewCompany(profile.companyName || "");
             setPreviewLocation(profile.address || "");
             
@@ -56,11 +60,10 @@ export function NewJobPageContent() {
     const maxSalary = formData.get("salaryMax") as string;
     const finalSalary = (minSalary && maxSalary) ? `$${minSalary} - $${maxSalary}` : (minSalary ? `Từ $${minSalary}` : "Thỏa thuận");
 
-    // 🔥 Truyền thêm company và location lấy từ Form lên API
     const data = {
       title: formData.get("title"),
-      company: formData.get("company"),       // Tên công ty (có thể đã bị HR sửa)
-      location: formData.get("location"),     // Địa điểm (có thể đã bị HR sửa)
+      company: formData.get("company"),
+      location: formData.get("location"),
       salary: finalSalary,
       status: formData.get("status"),
       description: formData.get("description"),
@@ -91,10 +94,10 @@ export function NewJobPageContent() {
     }
   }
 
-  // BỔ SUNG 3 DÒNG NÀY NGAY TRƯỚC LÚC RETURN GIAO DIỆN
   if (!isMounted) {
     return null;
   }
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-10">
@@ -107,7 +110,6 @@ export function NewJobPageContent() {
           <div className="bg-surface-container-lowest rounded-xl p-6 md:p-8 shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
             <form onSubmit={onSubmit} className="space-y-10">
               
-              {/* Box thông báo đã được tinh chỉnh lại cho hợp lý với Headhunter */}
               <div className="p-4 bg-primary-fixed/30 text-primary-fixed-dim rounded-xl text-sm border border-primary-fixed/50 flex items-start gap-3">
                 <span className="material-symbols-outlined text-primary mt-0.5">info</span>
                 <div>
@@ -124,7 +126,6 @@ export function NewJobPageContent() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Chức danh */}
                   <div className="space-y-2 md:col-span-2">
                     <label className="block font-label text-xs font-bold text-on-surface-variant tracking-wider uppercase">Chức danh công việc *</label>
                     <input 
@@ -138,7 +139,6 @@ export function NewJobPageContent() {
                     />
                   </div>
 
-                  {/* 🔥 CỘT MỚI 1: TÊN CÔNG TY */}
                   <div className="space-y-2">
                     <label className="block font-label text-xs font-bold text-on-surface-variant tracking-wider uppercase">Tên công ty tuyển dụng *</label>
                     <div className="relative">
@@ -156,7 +156,6 @@ export function NewJobPageContent() {
                     </div>
                   </div>
 
-                  {/* 🔥 CỘT MỚI 2: ĐỊA ĐIỂM LÀM VIỆC */}
                   <div className="space-y-2">
                     <label className="block font-label text-xs font-bold text-on-surface-variant tracking-wider uppercase">Địa điểm làm việc *</label>
                     <div className="relative">
@@ -174,7 +173,6 @@ export function NewJobPageContent() {
                     </div>
                   </div>
 
-                  {/* Upload Logo */}
                   <div className="space-y-2 md:col-span-2">
                     <label className="block font-label text-xs font-bold text-on-surface-variant tracking-wider uppercase">Logo Công Ty (Tùy chọn)</label>
                     <input type="hidden" name="companyLogoUrl" value={previewLogoUrl} />
@@ -203,7 +201,6 @@ export function NewJobPageContent() {
                     </CldUploadWidget>
                   </div>
                   
-                  {/* Hạn nộp & Trạng thái */}
                   <div className="space-y-2">
                     <label className="block font-label text-xs font-bold text-on-surface-variant tracking-wider uppercase">Hạn nộp hồ sơ</label>
                     <div className="relative">
@@ -235,7 +232,6 @@ export function NewJobPageContent() {
                 </div>
               </section>
 
-              {/* Mức lương */}
               <section>
                 <div className="flex items-center gap-3 mb-6 pt-4 border-t border-outline-variant/10">
                   <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
@@ -276,7 +272,6 @@ export function NewJobPageContent() {
                 </div>
               </section>
 
-              {/* Chi tiết công việc */}
               <section>
                 <div className="flex items-center gap-3 mb-6 pt-4 border-t border-outline-variant/10">
                   <div className="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center">
@@ -309,7 +304,6 @@ export function NewJobPageContent() {
                 </div>
               </section>
 
-              {/* Báo lỗi API */}
               {error && (
                 <div className="p-3 bg-error-container text-on-error-container rounded-lg text-sm font-medium flex items-center gap-2">
                   <span className="material-symbols-outlined">error</span>
@@ -317,7 +311,6 @@ export function NewJobPageContent() {
                 </div>
               )}
 
-              {/* Nút Submit */}
               <div className="flex justify-end items-center gap-4 pt-6 border-t border-outline-variant/10">
                 <Link href="/admin-jobs">
                   <button type="button" disabled={isLoading} className="px-6 py-3 font-headline font-bold text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50">
@@ -338,7 +331,6 @@ export function NewJobPageContent() {
           </div>
         </div>
 
-        {/* ================= CỘT PHẢI: PREVIEW ================= */}
         <div className="lg:col-span-4 space-y-8">
           
           <div className="bg-primary-container p-8 rounded-xl text-on-primary relative overflow-hidden shadow-lg">
@@ -353,7 +345,6 @@ export function NewJobPageContent() {
                     <img src={previewLogoUrl} alt="Logo preview" className="w-full h-full object-contain p-1" />
                   ) : (
                     <span className="text-primary font-bold text-2xl">
-                      {/* 🔥 Cập nhật Avatar chữ cái theo tên công ty mới nhất */}
                       {previewCompany ? previewCompany.charAt(0).toUpperCase() : "?"}
                     </span>
                   )}
@@ -361,7 +352,6 @@ export function NewJobPageContent() {
                 <h3 className="font-headline text-2xl font-bold truncate">{previewTitle || "Chức danh công việc"}</h3>
               </div>
 
-              {/* 🔥 Tên và địa chỉ cập nhật theo thời gian thực */}
               <p className="opacity-80 mb-6 truncate">{previewCompany} • {previewLocation}</p>
               
               <div className="flex flex-wrap gap-2 mb-8">
@@ -408,12 +398,5 @@ export function NewJobPageContent() {
         </div>
       </div>
     </div>
-  );
-}
-export default function NewJobPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center text-on-surface-variant">Đang tải biểu mẫu...</div>}>
-      <NewJobPageContent />
-    </Suspense>
   );
 }

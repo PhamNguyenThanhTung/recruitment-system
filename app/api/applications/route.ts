@@ -4,16 +4,15 @@ import { fileValidation } from '@/lib/validations';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { sendNewApplicationNotificationEmail } from '@/lib/email';
 import { NextResponse, NextRequest } from 'next/server';
+import { ApplicationStatus } from '@prisma/client';
 
 /**
  * POST /api/applications
  * Endpoint nộp đơn ứng tuyển cho Candidate
- * 
- * Yêu cầu:
+ * * Yêu cầu:
  * - Session đăng nhập với role === 'CANDIDATE'
  * - FormData gồm: jobId (string), cvFile (File)
- * 
- * Response: 201 Created - Application object
+ * * Response: 201 Created - Application object
  */
 export async function POST(request: NextRequest) {
   try {
@@ -156,12 +155,10 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/applications
  * Endpoint danh sách ứng tuyển cho HR
- * 
- * Query params:
+ * * Query params:
  * - jobId?: string
  * - status?: string
- * 
- * Response: ['applications']
+ * * Response: ['applications']
  */
 export async function GET(request: NextRequest) {
   try {
@@ -216,7 +213,19 @@ export async function GET(request: NextRequest) {
       },
     };
     if (jobId) where.jobId = jobId;
-    if (status) where.status = status;
+    
+    // 🔥 FIX LỖI 500 Ở ĐÂY: Ép status sang CHỮ HOA và cast as ApplicationStatus
+    if (status) {
+      let mappedStatus = status.toUpperCase();
+      
+      // Tự động map từ khóa cũ của Frontend sang chuẩn mới của Database
+      if (mappedStatus === 'INTERVIEW') mappedStatus = 'INTERVIEWING';
+      if (mappedStatus === 'REVIEWED') mappedStatus = 'REVIEWING';
+      if (mappedStatus === 'ACCEPTED') mappedStatus = 'OFFERED';
+
+      // Ép kiểu chuẩn cho Prisma
+      where.status = mappedStatus as ApplicationStatus;
+    }
 
     // Lấy danh sách ứng tuyển
     const applications = await db.application.findMany({

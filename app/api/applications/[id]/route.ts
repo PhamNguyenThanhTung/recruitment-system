@@ -1,14 +1,13 @@
 import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { NextResponse, NextRequest } from 'next/server';
+import { ApplicationStatus } from '@prisma/client'; // 🔥 Thêm dòng này để ép kiểu
 
 /**
  * GET /api/applications/[id]
  * Endpoint lấy chi tiết ứng tuyển (chỉ cho HR)
- * 
- * Path params: id (string)
- * 
- * Response: Application object với thông tin đầy đủ
+ * * Path params: id (string)
+ * * Response: Application object với thông tin đầy đủ
  */
 export async function GET(
   request: NextRequest,
@@ -86,11 +85,9 @@ export async function GET(
 /**
  * PATCH /api/applications/[id]
  * Endpoint cập nhật trạng thái ứng tuyển (chỉ cho HR)
- * 
- * Path params: id (string)
+ * * Path params: id (string)
  * Body: { status: string } - pending, reviewed, interview, accepted, rejected
- * 
- * Response: Application object sau khi cập nhật
+ * * Response: Application object sau khi cập nhật
  */
 export async function PATCH(
   request: NextRequest,
@@ -117,11 +114,13 @@ export async function PATCH(
     const body = await request.json();
     const { status } = body;
 
-    // ===== Validate status =====
-    const validStatuses = ['pending', 'reviewed', 'interview', 'accepted', 'rejected'];
-    if (!status || !validStatuses.includes(status)) {
+    // 🔥 FIX LỖI Ở ĐÂY: Ép sang chữ HOA và dùng mảng chuẩn của Database
+    const upperStatus = status?.toUpperCase();
+    const validStatuses = ['PENDING', 'REVIEWING', 'INTERVIEWING', 'OFFERED', 'REJECTED'];
+    
+    if (!upperStatus || !validStatuses.includes(upperStatus)) {
       return NextResponse.json(
-        { error: 'Trạng thái không hợp lệ. Phải là: pending, reviewed, interview, accepted, rejected' },
+        { error: `Trạng thái không hợp lệ. Phải là: ${validStatuses.join(', ')}` },
         { status: 400 }
       );
     }
@@ -150,7 +149,7 @@ export async function PATCH(
     // ===== Cập nhật status =====
     const updatedApplication = await db.application.update({
       where: { id },
-      data: { status },
+      data: { status: upperStatus as ApplicationStatus }, // 🔥 Truyền chữ HOA xuống Prisma
       include: {
         user: {
           select: {

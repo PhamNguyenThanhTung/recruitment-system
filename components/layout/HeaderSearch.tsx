@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function HeaderSearch() {
-  const [keyword, setKeyword] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // 1. Lấy từ khóa từ URL xuống (nếu người dùng vừa search ở bộ lọc Advanced)
+  const currentQuery = searchParams.get("q") || "";
+  
+  // 2. Khởi tạo state bằng giá trị từ URL
+  const [keyword, setKeyword] = useState(currentQuery);
+
+  // 3. Lắng nghe URL: Bất cứ khi nào URL thay đổi (do Advanced Filter làm), Header cũng phải nhảy theo
+  useEffect(() => {
+    setKeyword(currentQuery);
+  }, [currentQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyword.trim()) return;
     
-    // Gõ xong enter là bay thẳng sang trang /jobs
+    // Nếu xóa trắng ô search rồi enter -> Trở về trang jobs mặc định
+    if (!keyword.trim()) {
+      router.push('/jobs');
+      return;
+    }
+    
+    // Gõ xong enter là bay thẳng sang trang /jobs với từ khóa
     router.push(`/jobs?q=${encodeURIComponent(keyword.trim())}`);
   };
 

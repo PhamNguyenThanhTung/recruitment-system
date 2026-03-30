@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 export function SidebarNav() {
   const pathname = usePathname();
 
-  const navItems = [
-    { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
-    { href: "/admin-jobs", icon: "work", label: "Quản lý Việc làm" },
-    { href: "/applications", icon: "group", label: "Ứng viên" },
-  ];
+  // Trong file DashboardNav.tsx, sếp tìm đoạn navItems và sửa lại thành thế này:
+const navItems = [
+  { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
+  { href: "/admin-jobs", icon: "work", label: "Quản lý Việc làm" },
+  { href: "/applications", icon: "group", label: "Ứng viên" },
+  { href: "/profile", icon: "apartment", label: "Hồ sơ Công ty" }, // 👈 THÊM DÒNG NÀY VÀO ĐÂY
+];
 
   return (
     <nav className="flex flex-col gap-1 grow">
@@ -54,6 +56,10 @@ export function MobileNav() {
       <Link href="/applications" className={`flex flex-col items-center gap-1 ${pathname.startsWith('/applications') ? 'text-primary' : 'text-on-surface-variant'}`}>
         <span className="material-symbols-outlined">group</span>
       </Link>
+      <Link href="/profile" className={`flex flex-col items-center gap-1 ${pathname.startsWith('/profile') ? 'text-primary' : 'text-on-surface-variant'}`}>
+        <span className="material-symbols-outlined">apartment</span>
+      </Link>
     </nav>
+    
   );
 }

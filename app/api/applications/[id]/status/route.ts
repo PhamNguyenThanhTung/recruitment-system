@@ -2,22 +2,14 @@ import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { applicationStatusSchema } from '@/lib/validations';
 import { NextResponse, NextRequest } from 'next/server';
+import { sendStatusUpdateEmail } from '@/lib/email';
+import { z } from 'zod';
 
-/**
- * PATCH /api/applications/[id]/status
- * Endpoint cập nhật trạng thái ứng tuyển (chỉ cho HR)
- * 
- * Path params: id (string)
- * Request body: { status: string }
- * 
- * Response: Updated Application object
- */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Ép kiểu Promise cho Next.js 15
 ) {
   try {
-    // Kiểm tra session
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json(
@@ -32,24 +24,15 @@ export async function PATCH(
         { status: 403 }
       );
     }
+    
+    const { id } = await params; // 🔥 FIX: Bắt buộc phải có await ở đây
 
-    // Lấy id từ params
-    const { id } = await params;
-
-    // Parse và xác thực body
     const body = await request.json();
     const validatedData = applicationStatusSchema.parse(body);
 
-    // Kiểm tra ứng tuyển tồn tại & HR owns the job
     const existingApplication = await db.application.findUnique({
       where: { id },
-      include: {
-        job: {
-          select: {
-            userId: true,
-          },
-        },
-      },
+      select: { job: { select: { userId: true } } },
     });
 
     if (!existingApplication) {
@@ -59,7 +42,6 @@ export async function PATCH(
       );
     }
 
-    // ===== BẢNG BẢO MẬT: Kiểm tra HR owns this job =====
     if (existingApplication.job.userId !== session.user.id) {
       return NextResponse.json(
         { error: 'Bạn không có quyền cập nhật ứng tuyển này' },
@@ -67,35 +49,43 @@ export async function PATCH(
       );
     }
 
-    // Cập nhật trạng thái
+    // Cập nhật trạng thái và lấy chính xác những gì cần cho Email
     const updatedApplication = await db.application.update({
       where: { id },
-      data: {
-        status: validatedData.status,
-      },
+      data: { status: validatedData.status },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        user: { select: { name: true, email: true } },
         job: {
           select: {
-            id: true,
             title: true,
             company: true,
-          },
-        },
-      },
+            user: {
+              select: {
+                companyProfile: { select: { companyName: true } }
+              }
+            }
+          }
+        }
+      }
     });
+
+    // Gửi email thông báo (Graceful failure)
+    if (updatedApplication.user.email) {
+      // Fire-and-forget: Không await để trả response cho HR nhanh hơn
+      sendStatusUpdateEmail({
+        to: updatedApplication.user.email,
+        candidateName: updatedApplication.user.name ?? 'Ứng viên',
+        jobTitle: updatedApplication.job.title,
+        newStatus: updatedApplication.status,
+        companyName: updatedApplication.job.user.companyProfile?.companyName ?? updatedApplication.job.company,
+      }).catch(err => console.error('Lỗi gửi mail âm thầm:', err));
+    }
 
     return NextResponse.json(updatedApplication);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('validation')) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dữ liệu không hợp lệ', details: error.message },
+        { error: 'Dữ liệu không hợp lệ', details: error.flatten().fieldErrors },
         { status: 400 }
       );
     }

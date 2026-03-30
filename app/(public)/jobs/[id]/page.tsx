@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth"; 
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { JobStatus } from "@prisma/client"; // ✅ 1. IMPORT ENUM VÀO ĐÂY
+import ApplyModal from "@/components/jobs/ApplyModal";
 
 export default async function JobDetailPage({
   params,
@@ -23,7 +25,8 @@ export default async function JobDetailPage({
     },
   });
 
-  if (!job || job.status !== "Open") {
+  // ✅ 2. ĐỔI "Open" THÀNH JobStatus.OPEN
+  if (!job || job.status !== JobStatus.OPEN) {
     notFound();
   }
 
@@ -37,7 +40,7 @@ export default async function JobDetailPage({
       id: {
         not: job.id, // Loại trừ job đang xem
       },
-      status: "Open", // Chỉ lấy job đang mở
+      status: JobStatus.OPEN, // ✅ 3. ĐỔI "Open" THÀNH JobStatus.OPEN
     },
     take: 3, // Lấy tối đa 3 jobs để dàn đều 3 cột
     include: {
@@ -52,7 +55,6 @@ export default async function JobDetailPage({
   const companyProfile = job.user?.companyProfile;
   const companyName = companyProfile?.companyName || job.company;
   const companyLogo = companyProfile?.logoUrl || null;
-  const initialLogo = companyName.charAt(0).toUpperCase();
 
   // Logic kiểm tra Role
   const canApply = !session || session.user?.role === "CANDIDATE";
@@ -86,52 +88,41 @@ export default async function JobDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* CỘT TRÁI: THÔNG TIN CHI TIẾT */}
           <div className="lg:col-span-8 space-y-8">
-            {/* Header Card */}
-            <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] relative overflow-hidden border border-outline-variant/10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-secondary-container/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-surface-container-high flex items-center justify-center shrink-0">
-                    {companyLogo ? (
-                      <img className="w-full h-full object-cover" alt={companyName} src={companyLogo} />
-                    ) : (
-                      <span className="text-3xl font-headline font-bold text-primary">{initialLogo}</span>
-                    )}
-                  </div>
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-extrabold font-headline text-on-surface tracking-tight mb-1">{job.title}</h1>
-                    <p className="text-lg text-primary font-semibold">{companyName} · {job.location}</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-wrap gap-3 mb-8">
-                  <span className="bg-secondary-fixed text-on-secondary-fixed-variant px-4 py-1.5 rounded-full font-label text-xs font-bold uppercase tracking-wider">
-                    Đang mở tuyển
-                  </span>
-                  {job.salary && (
-                    <span className="bg-primary-fixed text-on-primary-fixed-variant px-4 py-1.5 rounded-full font-label text-xs font-bold uppercase tracking-wider">
-                      {job.salary}
+            {/* Hiển thị Header Công Ty */}
+            <div className="flex items-center gap-6 mb-8 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
+              {/* Lấy Logo từ companyProfile, nếu không có thì xài cái icon mặc định */}
+              <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
+                {companyLogo ? (
+                  <img 
+                    src={companyLogo} 
+                    alt={companyName} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="material-symbols-outlined text-4xl text-gray-300">apartment</span>
+                )}
+              </div>
+              
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{job.title}</h1>
+                <div className="flex items-center gap-4 mt-2 text-gray-600">
+                  <p className="font-medium text-blue-600">{companyName}</p>
+                  
+                  {/* Hiển thị Quy mô nhân sự nếu có */}
+                  {companyProfile?.size && (
+                    <span className="flex items-center gap-1 text-sm bg-gray-100 px-2 py-1 rounded-md">
+                      <span className="material-symbols-outlined text-[16px]">groups</span>
+                      {companyProfile.size} nhân viên
                     </span>
                   )}
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-outline-variant/15">
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary bg-primary/5 p-2 rounded-lg">calendar_today</span>
-                    <div>
-                      <p className="text-on-surface-variant text-xs font-label uppercase">Ngày đăng</p>
-                      <p className="font-bold text-sm">{new Date(job.createdAt).toLocaleDateString('vi-VN')}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-secondary bg-secondary/5 p-2 rounded-lg">event</span>
-                    <div>
-                      <p className="text-on-surface-variant text-xs font-label uppercase">Hạn nộp</p>
-                      <p className="font-bold text-sm">
-                        {job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : "Không giới hạn"}
-                      </p>
-                    </div>
-                  </div>
+                  
+                  {/* Hiển thị Năm thành lập nếu có */}
+                  {companyProfile?.foundedYear && (
+                    <span className="flex items-center gap-1 text-sm bg-gray-100 px-2 py-1 rounded-md">
+                      <span className="material-symbols-outlined text-[16px]">history</span>
+                      Thành lập {companyProfile.foundedYear}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -182,12 +173,12 @@ export default async function JobDetailPage({
                   <>
                     <h3 className="text-2xl font-extrabold font-headline mb-2">Sẵn sàng ứng tuyển?</h3>
                     <p className="text-primary-fixed/80 text-sm mb-8 leading-relaxed">Nắm bắt cơ hội nghề nghiệp tuyệt vời này bằng cách gửi CV ngay hôm nay.</p>
-                    <Link href={`/jobs/${job.id}/apply`}>
-                      <button className="w-full bg-secondary-container text-on-secondary-container font-headline font-extrabold py-4 rounded-xl mb-4 transition-all hover:brightness-105 active:scale-95 duration-200 shadow-lg">
-                        Ứng tuyển ngay
-                      </button>
-                    </Link>
-                  </>
+                    <ApplyModal 
+                    jobId={job.id} 
+                    jobTitle={job.title} 
+                    isLoggedIn={!!session?.user} 
+                  />
+                </>
                 )}
                 
                 <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-xs font-label opacity-70">

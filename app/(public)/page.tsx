@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 // 🔥 IMPORT COMPONENT TÌM KIẾM
 import SearchForm from "@/components/home/Searchform";
+import { JobStatus } from "@prisma/client";
 
 export default async function HomePage() {
   const session = await auth();
 
   // 1. Kéo danh sách việc làm mới nhất (Featured Jobs)
   const featuredJobs = await db.job.findMany({
-    where: { status: "Open" },
+    where: { status: JobStatus.OPEN },
     take: 5,
     orderBy: { createdAt: "desc" },
     include: {
@@ -23,9 +24,9 @@ export default async function HomePage() {
 
   // 2. Đếm số lượng Job cho từng Category (Bằng cách tìm từ khóa trong Title)
   const [designCount, engineerCount, marketingCount] = await Promise.all([
-    db.job.count({ where: { status: "Open", title: { contains: "design", mode: "insensitive" } } }),
-    db.job.count({ where: { status: "Open", title: { contains: "engineer", mode: "insensitive" } } }),
-    db.job.count({ where: { status: "Open", title: { contains: "marketing", mode: "insensitive" } } })
+    db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "design", mode: "insensitive" } } }),
+    db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "engineer", mode: "insensitive" } } }),
+    db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "marketing", mode: "insensitive" } } })
   ]);
 
   // 3. Lấy 3 từ khóa phổ biến dựa trên 3 Job mới nhất (để làm gợi ý dưới ô Search)

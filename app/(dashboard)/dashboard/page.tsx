@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { HRDashboard } from "@/components/dashboard/HRDashboard";
+import { JobStatus } from "@prisma/client";
 
 export default async function DashboardOverviewPage() {
   const session = await auth();
@@ -67,9 +68,9 @@ export default async function DashboardOverviewPage() {
                       </td>
                       <td className="px-6 py-5">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          job.status === "Open" ? "bg-secondary/10 text-secondary" : "bg-outline-variant/30 text-on-surface-variant"
+                          job.status === JobStatus.OPEN ? "bg-secondary/10 text-secondary" : "bg-outline-variant/30 text-on-surface-variant"
                         }`}>
-                          {job.status === "Open" ? "Đang mở" : "Đã đóng"}
+                          {job.status === JobStatus.OPEN ? "Đang mở" : "Đã đóng"}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-center">

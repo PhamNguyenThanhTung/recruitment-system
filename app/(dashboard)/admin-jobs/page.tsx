@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { JobStatus } from "@prisma/client"; // ✅ 1. IMPORT ENUM
 
 export default async function JobsPage() {
   const session = await auth();
@@ -20,13 +21,14 @@ export default async function JobsPage() {
     }
   });
 
-  const getStatusBadge = (status: string) => {
+  // ✅ 2. SỬA HÀM NÀY ĐỂ NHẬN ENUM JobStatus
+  const getStatusBadge = (status: JobStatus) => {
     switch (status) {
-      case "Open":
-        return <span className="bg-secondary/10 text-secondary px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Đang mở tuyển</span>;
-      case "Draft":
+      case JobStatus.OPEN:
+        return <span className="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Đang mở tuyển</span>;
+      case JobStatus.DRAFT:
         return <span className="bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Bản nháp</span>;
-      case "Closed":
+      case JobStatus.CLOSED:
         return <span className="bg-error/10 text-error px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Đã đóng</span>;
       default:
         return <span className="bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider">{status}</span>;
@@ -36,14 +38,19 @@ export default async function JobsPage() {
   return (
     <>
       {/* ================= HEADER SECTION ================= */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight font-headline">Quản lý Việc làm</h1>
           <p className="text-on-surface-variant font-medium mt-2">
             Bạn đang có <span className="text-primary font-bold">{jobs.length}</span> tin tuyển dụng trên hệ thống.
           </p>
         </div>
-
+        <Link href="/admin-jobs/new">
+          <button className="bg-primary hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-colors">
+            <span className="material-symbols-outlined">add</span>
+            Tạo Job mới
+          </button>
+        </Link>
       </div>
 
       {/* ================= FILTERS & BẢNG TÓM TẮT (Dummy Filter Layout) ================= */}
@@ -73,7 +80,7 @@ export default async function JobsPage() {
           <h3 className="text-xl font-bold font-headline mb-2">Chưa có tin tuyển dụng nào</h3>
           <p className="text-on-surface-variant mb-6">Bắt đầu thu hút nhân tài bằng cách tạo tin tuyển dụng đầu tiên của bạn.</p>
           <Link href="/admin-jobs/new">
-            <button className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold">Đăng tin ngay</button>
+            <button className="bg-primary hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors">Đăng tin ngay</button>
           </Link>
         </div>
       ) : (
@@ -81,7 +88,7 @@ export default async function JobsPage() {
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="bg-surface-container-low/50 border-b border-outline-variant/10">
               <tr>
-                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label">Vị trí tuyển dụng</th>
+                <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label w-1/3">Vị trí tuyển dụng</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label text-center">Trạng thái</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label text-center">Ứng viên</th>
                 <th className="px-6 py-5 text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label">Ngày đăng</th>
@@ -112,7 +119,7 @@ export default async function JobsPage() {
 
                   {/* Cột 3: Đếm số lượng ứng viên (Sẽ click được sang trang Application) */}
                   <td className="px-6 py-5 text-center">
-                    <Link href={`/applications?jobId=${job.id}`}>
+                    <Link href={`/admin-jobs/${job.id}/applications`}>
                       <div className="inline-flex flex-col items-center justify-center p-2 rounded-lg hover:bg-primary/5 transition-colors cursor-pointer group/badge">
                         <span className="font-headline font-black text-lg text-on-surface group-hover/badge:text-primary transition-colors">
                           {job._count.applications}
@@ -128,19 +135,26 @@ export default async function JobsPage() {
                     <p className="text-xs text-outline mt-1 line-clamp-1">{job.salary || "Lương thỏa thuận"}</p>
                   </td>
                   
-                  {/* Cột 5: Hành động */}
+                  {/* 🔥 CỘT 5: HÀNH ĐỘNG (SỬA LẠI ĐỂ HIỆN RÕ RÀNG NÚT KANBAN VÀ SỬA) 🔥 */}
                   <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link href={`/jobs/${job.id}`} target="_blank">
-                        <button className="flex items-center justify-center p-2 text-slate-500 hover:text-primary hover:bg-primary-fixed/50 rounded-lg transition-colors" title="Xem trên Web tuyển dụng">
-                          <span className="material-symbols-outlined">public</span>
+                    <div className="flex items-center justify-end gap-2">
+                      
+                      {/* NÚT XEM HỒ SƠ (Thay cho nút Kanban cũ) */}
+                      <Link href={`/admin-jobs/${job.id}/applications`}>
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md transition-colors text-xs font-bold border border-blue-100">
+                          <span className="material-symbols-outlined text-[16px]">folder_shared</span>
+                          Xem CV
                         </button>
                       </Link>
+
+                      {/* NÚT SỬA */}
                       <Link href={`/admin-jobs/${job.id}/edit`}>
-                        <button className="flex items-center justify-center p-2 text-slate-500 hover:text-primary hover:bg-primary-fixed/50 rounded-lg transition-colors" title="Chỉnh sửa tin">
-                          <span className="material-symbols-outlined">edit</span>
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high rounded-md transition-colors text-xs font-bold border border-outline-variant/20">
+                          <span className="material-symbols-outlined text-[16px]">edit</span>
+                          Sửa tin
                         </button>
                       </Link>
+
                     </div>
                   </td>
                 </tr>
@@ -149,7 +163,7 @@ export default async function JobsPage() {
           </table>
           
           {/* Pagination (Trang trí UI) */}
-          <div className="px-6 py-5 bg-surface-container-low/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="px-6 py-5 bg-surface-container-low/30 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-outline-variant/10">
             <p className="text-sm text-on-surface-variant font-medium">
               Hiển thị <span className="font-bold text-on-surface">{jobs.length}</span> kết quả
             </p>

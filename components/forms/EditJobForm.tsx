@@ -264,9 +264,9 @@ export default function EditJobForm({ job }: { job: any }) {
         <div className={`p-8 rounded-2xl text-white shadow-xl bg-gradient-to-br ${job.status === 'Open' ? 'from-primary-container to-primary' : 'from-slate-500 to-slate-700'}`}>
           <h3 className="text-xl font-headline font-extrabold mb-4">Trạng thái Tin tuyển dụng</h3>
           <div className="flex items-center gap-3 mb-6">
-            {job.status === 'Open' && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
+            {job.status === 'OPEN' && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
             <span className="font-bold tracking-tight text-lg">
-              {job.status === 'Open' ? 'Đang mở tuyển (Active)' : job.status === 'Draft' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
+              {job.status === 'OPEN' ? 'Đang mở tuyển (Active)' : job.status === 'Draft' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
             </span>
           </div>
           

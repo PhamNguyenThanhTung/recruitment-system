@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { JobStatus } from '@prisma/client';
 
 /**
  * GET /api/analytics/hr
@@ -21,7 +22,7 @@ export async function GET() {
 
     const [openJobsCount, totalApplicants] = await Promise.all([
       db.job.count({
-        where: { userId: hrId, status: 'Open' },
+        where: { userId: hrId, status: JobStatus.OPEN },
       }),
       db.application.count({
         where: { job: { userId: hrId } },

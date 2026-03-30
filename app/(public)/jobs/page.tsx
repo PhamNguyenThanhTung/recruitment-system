@@ -4,7 +4,7 @@ import AdvancedJobFilter from "@/components/jobs/AdvancedJobFilter";
 import BookmarkButton from "@/components/jobs/BookmarkButton";
 import Pagination from "@/components/ui/Pagination";
 import { auth } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
+import { Prisma, JobStatus } from "@prisma/client";
 import Link from "next/link";
 
 export default async function JobsPage({
@@ -25,7 +25,7 @@ export default async function JobsPage({
   const skip = (currentPage - 1) * limit;
 
   // === 1. GIAO CHO PRISMA XỬ LÝ TOÀN BỘ ĐIỀU KIỆN (ĐÃ FIX LỖI FILTER) ===
-  const where: Prisma.JobWhereInput = { status: "Open" };
+  const where: Prisma.JobWhereInput = { status: JobStatus.OPEN };
   const andConditions: Prisma.JobWhereInput[] = [];
 
   // Lọc Từ khóa

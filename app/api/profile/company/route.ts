@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { companyProfileSchema } from '@/lib/validations';
+import { companyProfileSchema, updateCompanyProfileSchema } from '@/lib/validations';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 
 /**
  * GET /api/profile/company
@@ -119,4 +120,65 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * PUT /api/profile/company
+ * 
+ * Endpoint để cập nhật hồ sơ công ty.
+ * Yêu cầu: Người dùng phải đăng nhập và có role 'HR'
+ * 
+ * @param body - Dữ liệu hồ sơ công ty (companyName, address, website?, description?, logoUrl?, size?, foundedYear?)
+ * @returns CompanyProfile sau khi cập nhật
+ */
+export async function PUT(request: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id || session.user.role !== 'HR') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const validatedData = updateCompanyProfileSchema.parse(body);
+
+        // Check if profile exists to decide if creation validation is needed
+        const existingProfile = await db.companyProfile.findUnique({
+            where: { userId: session.user.id },
+        });
+
+        // If creating a new profile, enforce required fields
+        if (!existingProfile) {
+            if (!validatedData.companyName || validatedData.companyName.length < 2) {
+                return NextResponse.json({ error: 'Company name is required and must be at least 2 characters long for new profiles.' }, { status: 400 });
+            }
+            if (!validatedData.address || validatedData.address.length < 5) {
+                return NextResponse.json({ error: 'Address is required and must be at least 5 characters long for new profiles.' }, { status: 400 });
+            }
+        }
+
+        const companyProfile = await db.companyProfile.upsert({
+            where: { userId: session.user.id },
+            update: validatedData,
+            create: {
+                userId: session.user.id,
+                // We've already validated these are present if it's a create operation
+                companyName: validatedData.companyName!,
+                address: validatedData.address!,
+                ...validatedData,
+            },
+        });
+
+        return NextResponse.json(companyProfile);
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json(
+                { error: 'Invalid data format', details: error.errors },
+                { status: 400 }
+            );
+        }
+        
+        console.error('❌ PUT /api/profile/company error:', error);
+        return NextResponse.json({ error: 'Server error while updating profile' }, { status: 500 });
+    }
 }

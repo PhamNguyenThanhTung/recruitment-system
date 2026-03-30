@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== BẢNG BẢO MẬT: Kiểm tra job đã mở hay không =====
-    if (job.status !== 'Open') {
+    if (job.status !== 'OPEN') {
       return NextResponse.json(
         { error: 'Công việc này không còn nhận ứng viên' },
         { status: 403 }

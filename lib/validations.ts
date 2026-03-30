@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApplicationStatus, JobStatus } from '@prisma/client';
 
 /**
  * Schema xác thực đăng ký tài khoản (HR)
@@ -23,7 +24,7 @@ export const candidateRegisterSchema = z.object({
  * Schema xác thực trạng thái ứng tuyển
  */
 export const applicationStatusSchema = z.object({
-  status: z.enum(['pending', 'reviewed', 'interview', 'accepted', 'rejected']),
+  status: z.nativeEnum(ApplicationStatus),
 });
 
 /**
@@ -37,11 +38,11 @@ export const jobSchema = z.object({
   salary: z.string().optional(),
   location: z.string().optional(), // ✅ THÀNH OPTIONAL - backend sẽ tự động lấy từ CompanyProfile
   deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
-  status: z.enum(['Draft', 'Open', 'Closed']).default('Draft'),
+  status: z.nativeEnum(JobStatus).default(JobStatus.DRAFT),
 });
 
 /**
- * Schema xác thực hồ sơ công ty (Company Profile) - Dành cho HR
+ * Schema xác thực hồ sơ công ty (Company Profile) - Dành cho HR (Creation)
  */
 export const companyProfileSchema = z.object({
   companyName: z.string().min(2, 'Tên công ty phải có ít nhất 2 ký tự'),
@@ -51,13 +52,45 @@ export const companyProfileSchema = z.object({
 });
 
 /**
+ * Schema xác thực cập nhật hồ sơ công ty (Company Profile) - Dành cho HR
+ */
+export const updateCompanyProfileSchema = z.object({
+    companyName: z.string().min(2, 'Tên công ty phải có ít nhất 2 ký tự').optional(),
+    address: z.string().min(5, 'Địa chỉ phải có ít nhất 5 ký tự').optional(),
+    website: z.string().url('Website phải là URL hợp lệ').optional().or(z.literal('')),
+    description: z.string().optional(),
+    logoUrl: z.string().url('Logo phải là URL hợp lệ').optional(),
+    size: z.string().optional(),
+    foundedYear: z.number().int().min(1800).max(new Date().getFullYear()).optional(),
+});
+
+/**
  * Schema xác thực hồ sơ ứng viên (Candidate Profile) - Dành cho Candidate
  */
-export const candidateProfileSchema = z.object({
-  address: z.string().optional(),
-  skills: z.string().optional(),
-  bio: z.string().optional(),
+const educationItemSchema = z.object({
+  degree: z.string(),
+  school: z.string(),
+  year: z.string(),
 });
+
+const experienceItemSchema = z.object({
+  title: z.string(),
+  company: z.string(),
+  from: z.string(),
+  to: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const updateCandidateProfileSchema = z.object({
+  skills: z.string().optional(),
+  education: z.array(educationItemSchema).optional(),
+  experience: z.array(experienceItemSchema).optional(),
+  bio: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  avatarUrl: z.string().url('Avatar phải là URL hợp lệ').optional(),
+});
+
 
 /**
  * Xác thực file CV
@@ -92,4 +125,5 @@ export type CandidateRegisterInput = z.infer<typeof candidateRegisterSchema>;
 export type ApplicationStatusInput = z.infer<typeof applicationStatusSchema>;
 export type JobInput = z.infer<typeof jobSchema>;
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;
-export type CandidateProfileInput = z.infer<typeof candidateProfileSchema>;
+export type UpdateCompanyProfileInput = z.infer<typeof updateCompanyProfileSchema>;
+export type CandidateProfileInput = z.infer<typeof updateCandidateProfileSchema>;

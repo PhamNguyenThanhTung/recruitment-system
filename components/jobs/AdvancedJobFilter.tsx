@@ -1,9 +1,9 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 
-// Enum JobType cho Checkbox (Khớp với Prisma Schema của bạn)
+// Enum JobType cho Checkbox
 const JOB_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'FREELANCE', 'INTERNSHIP'];
 
 export default function AdvancedJobFilter() {
@@ -21,47 +21,41 @@ export default function AdvancedJobFilter() {
     searchParams.get('jobType')?.split(',') || []
   );
 
-  // Check xem có bộ lọc nào đang được bật không
   const hasActiveFilters = keyword || location || minSalary !== '0' || selectedTypes.length > 0;
 
-  // Helper function để gộp query params mới vào URL cũ
-  const createQueryString = useCallback(
-    (paramsToUpdate: Record<string, string | null>) => {
+  // 🔥 TUYỆT CHIÊU 1: Dùng useRef để chặn useEffect tự động đẩy URL ở lần load trang đầu tiên
+  const initialRender = useRef(true);
+
+  // Áp dụng Debounce 500ms
+  useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      // Khởi tạo params trực tiếp trong này để lấy bản mới nhất
       const params = new URLSearchParams(searchParams.toString());
 
-      Object.entries(paramsToUpdate).forEach(([key, value]) => {
-        if (value) {
-          params.set(key, value);
-        } else {
-          params.delete(key);
-        }
-      });
+      if (keyword) params.set('q', keyword); else params.delete('q');
+      if (location) params.set('location', location); else params.delete('location');
+      if (minSalary !== '0') params.set('minSalary', minSalary); else params.delete('minSalary');
+      if (selectedTypes.length > 0) params.set('jobType', selectedTypes.join(',')); else params.delete('jobType');
 
       // Khi filter thay đổi, luôn reset về trang 1
       params.set('page', '1');
-      return params.toString();
-    },
-    [searchParams]
-  );
 
-  // Áp dụng Debounce 500ms trước khi push lên URL
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const queryString = createQueryString({
-        q: keyword,
-        location: location,
-        minSalary: minSalary === '0' ? null : minSalary,
-        jobType: selectedTypes.length > 0 ? selectedTypes.join(',') : null,
-      });
-
-      // BỌC ROUTER.PUSH TRONG USE-TRANSITION ĐỂ KHÔNG BỊ ĐÓNG BĂNG UI
       startTransition(() => {
-        router.push(`${pathname}?${queryString}`, { scroll: false });
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
       });
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [keyword, location, minSalary, selectedTypes, pathname, router, createQueryString]);
+    
+    // 🔥 TUYỆT CHIÊU 2: TUYỆT ĐỐI KHÔNG ĐỂ searchParams VÀO ĐÂY!
+    // Chỉ chạy useEffect khi sếp THỰC SỰ gõ phím hoặc chọn checkbox.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyword, location, minSalary, selectedTypes, pathname, router]);
 
   const handleTypeToggle = (type: string) => {
     setSelectedTypes((prev) =>

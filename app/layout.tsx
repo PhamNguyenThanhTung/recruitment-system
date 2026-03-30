@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
-// 🔥 IMPORT NAVBAR VÀO ĐÂY
 import Navbar from "@/components/layout/Navbar"; 
 import "./globals.css";
+// 🔥 1. IMPORT SUSPENSE TỪ REACT
+import { Suspense } from "react";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-headline", subsets: ["latin"] });
 const manrope = Manrope({ variable: "--font-body", subsets: ["latin"] });
 
@@ -38,12 +38,18 @@ export default function RootLayout({
         <SessionProvider>
           <ToastProvider />
           
-          {/* 🔥 GẮN NAVBAR VÀO ĐÂY */}
-          <Navbar />
+          {/* 🔥 2. BỌC NAVBAR VÀO SUSPENSE 
+              Vì Navbar thường xài useSearchParams để check URL active hoặc Search */}
+          <Suspense fallback={<div className="h-16 w-full bg-surface" />}>
+            <Navbar />
+          </Suspense>
 
-          {/* Bao bọc content bằng main flex-1 để full chiều cao */}
+          {/* 🔥 3. BỌC CẢ MAIN CHILDREN VÀO SUSPENSE 
+              Để "cứu" trang 404 và các trang con khác khi build tĩnh */}
           <main className="flex-1">
-             {children}
+            <Suspense fallback={<div className="flex items-center justify-center p-20">Đang tải nội dung...</div>}>
+               {children}
+            </Suspense>
           </main>
           
         </SessionProvider>

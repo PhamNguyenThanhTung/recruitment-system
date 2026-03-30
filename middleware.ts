@@ -33,10 +33,6 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (isPublicPath || isJobDetailPath) {
-    return NextResponse.next();
-  }
-
   // === CANDIDATE ROUTES ===
   if (nextUrl.pathname.startsWith('/candidate')) {
     // Nếu chưa đăng nhập hoặc role không phải CANDIDATE, redirect đến /login

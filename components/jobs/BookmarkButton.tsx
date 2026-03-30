@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { toast } from 'react-hot-toast'; // Đảm bảo sếp đã cài react-hot-toast
+import { toast } from 'react-hot-toast';
 
 interface BookmarkButtonProps {
   jobId: string;

@@ -4,7 +4,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
 import { JobStatus } from "@prisma/client";
 
-// Schema giữ nguyên như sếp đã viết
+
 const updateJobSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().min(1).optional(),

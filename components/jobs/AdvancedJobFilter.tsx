@@ -53,7 +53,7 @@ export default function AdvancedJobFilter() {
     return () => clearTimeout(timer);
     
     // 🔥 TUYỆT CHIÊU 2: TUYỆT ĐỐI KHÔNG ĐỂ searchParams VÀO ĐÂY!
-    // Chỉ chạy useEffect khi sếp THỰC SỰ gõ phím hoặc chọn checkbox.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword, location, minSalary, selectedTypes, pathname, router]);
 

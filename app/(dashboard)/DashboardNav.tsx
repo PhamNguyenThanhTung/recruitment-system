@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 export function SidebarNav() {
   const pathname = usePathname();
 
-  // Trong file DashboardNav.tsx, sếp tìm đoạn navItems và sửa lại thành thế này:
+  
 const navItems = [
   { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
   { href: "/admin-jobs", icon: "work", label: "Quản lý Việc làm" },

@@ -52,7 +52,7 @@ export default async function CompaniesPage() {
             <span className="material-symbols-outlined text-slate-400 pl-4 pr-2">domain</span>
             <input 
               type="text" 
-              placeholder="Nhập tên công ty sếp muốn tìm..." 
+              placeholder="Nhập tên công ty muốn tìm..." 
               className="flex-1 bg-transparent border-none outline-none py-3 text-slate-700 font-medium"
             />
             <button className="bg-secondary-fixed text-on-secondary-fixed px-8 py-3 rounded-full font-bold hover:brightness-105 transition-all">
@@ -89,7 +89,7 @@ export default async function CompaniesPage() {
                         className="w-full h-full object-contain p-1" 
                       />
                     ) : (
-                      // Nếu không có ảnh thì hiện chữ cái đầu như sếp muốn
+                     
                       company.companyName.charAt(0).toUpperCase()
                     )}
                   </div>

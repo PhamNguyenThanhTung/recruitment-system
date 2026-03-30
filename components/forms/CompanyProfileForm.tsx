@@ -38,7 +38,7 @@ export default function CompanyProfileForm({ initialData }: { initialData: any }
 
     try {
       const res = await fetch('/api/profile/company', {
-        method: 'PUT', // Dùng hàm PUT theo đúng API sếp viết
+        method: 'PUT', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -125,7 +125,7 @@ export default function CompanyProfileForm({ initialData }: { initialData: any }
             )}
           </CldUploadWidget>
     
-    {/* Link ẩn để validate, sếp không cần quan tâm cái này */}
+   
     <input type="hidden" name="logoUrl" value={formData.logoUrl} required />
   </div>
   <p className="text-xs text-gray-500">Hỗ trợ định dạng JPG, PNG. Tối đa 2MB.</p>

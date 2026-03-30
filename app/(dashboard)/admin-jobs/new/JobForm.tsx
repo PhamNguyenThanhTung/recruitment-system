@@ -129,7 +129,7 @@ export default function JobForm() {
                   </div>
                 </div>
 
-                {/* Phần Description và Salary sếp cứ giữ nguyên như code cũ của sếp nhé... */}
+                
                 <div className="space-y-2">
                     <label className="block text-xs font-bold text-on-surface-variant uppercase">Mô tả công việc *</label>
                     <textarea name="description" required className="w-full bg-surface-container-low border-0 rounded-lg py-4 px-4 min-h-[150px] outline-none focus:ring-2 focus:ring-primary"></textarea>

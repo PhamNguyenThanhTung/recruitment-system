@@ -40,20 +40,7 @@ export default async function DashboardLayout({
         {/* MENU ĐỘNG TỪ CLIENT COMPONENT */}
         <SidebarNav /> 
         
-        <div className="mt-auto flex flex-col gap-1 border-t border-slate-200/50 dark:border-slate-800 pt-4">
-          <Link href="/admin-jobs/new">
-            <button className="w-full py-3 px-4 mb-4 bg-primary text-on-primary rounded-xl font-bold flex items-center justify-center gap-2 shadow-[0px_10px_20px_rgba(0,89,187,0.15)] hover:scale-[1.02] active:scale-95 transition-all">
-              <span className="material-symbols-outlined text-sm">add</span>
-              Tạo Job mới
-            </button>
-          </Link>
-          <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
-            <button type="submit" className="w-full flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-error transition-colors rounded-lg hover:bg-red-50">
-              <span className="material-symbols-outlined">logout</span>
-              Đăng xuất
-            </button>
-          </form>
-        </div>
+        
       </aside>
 
       {/* ================= MAIN CONTENT ================= */}

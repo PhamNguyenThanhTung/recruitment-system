@@ -1,10 +1,7 @@
-import * as React from "react";
+
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-// 🔥 IMPORT COMPONENT TÌM KIẾM
-import SearchForm from "@/components/home/Searchform";
 import { JobStatus } from "@prisma/client";
 
 export default async function HomePage() {
@@ -26,7 +23,7 @@ export default async function HomePage() {
   const [designCount, engineerCount, marketingCount] = await Promise.all([
     db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "design", mode: "insensitive" } } }),
     db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "engineer", mode: "insensitive" } } }),
-    db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "marketing", mode: "insensitive" } } })
+    db.job.count({ where: { status: JobStatus.OPEN, title: { contains: "market", mode: "insensitive" } } })
   ]);
 
   // 3. Lấy 3 từ khóa phổ biến dựa trên 3 Job mới nhất (để làm gợi ý dưới ô Search)
@@ -35,11 +32,26 @@ export default async function HomePage() {
     return job.title.split(' ').slice(0, 2).join(' ');
   });
 
-  // 4. Kéo danh sách các Công ty (World-Class Teams)
-  const topCompanies = await db.companyProfile.findMany({
+// 4. Kéo danh sách các Công ty từ bảng Job (Lấy 5 công ty có nhiều job nhất)
+  const rawJobs = await db.job.groupBy({
+    by: ['company'],
+    _count: {
+      id: true,
+    },
+    orderBy: {
+      _count: {
+        id: 'desc', // Sắp xếp theo số lượng job giảm dần
+      },
+    },
     take: 5,
-    orderBy: { updatedAt: "desc" }
   });
+
+  // Map lại để giao diện không bị lỗi, thêm kiểu dữ liệu để TS không kêu
+  const topCompanies = rawJobs.map((j) => ({
+    id: j.company, // Dùng tên công ty làm ID tạm thời
+    companyName: j.company,
+    logoUrl: null, // Job nhập tay thường không có logo
+  }));
 
   return (
     <div className="flex flex-col min-h-screen bg-surface font-body">
@@ -61,9 +73,12 @@ export default async function HomePage() {
       </section>
 
       {/* ================= DYNAMIC CATEGORIES ================= */}
+      {/* ================= DYNAMIC CATEGORIES ================= */}
       <section className="max-w-7xl mx-auto px-6 w-full -mt-10 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+          
+          {/* Card 1: Design & Creative */}
+          <Link href="/jobs?q=design" className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
             <div>
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Design & Creative</h3>
               <p className="text-on-surface-variant text-sm">{designCount} vị trí đang mở</p>
@@ -71,9 +86,10 @@ export default async function HomePage() {
             <div className="w-12 h-12 rounded-full bg-secondary/10 text-secondary flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
               <span className="material-symbols-outlined">palette</span>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+          {/* Card 2: Engineering */}
+          <Link href="/jobs?q=engineer" className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
             <div>
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Engineering</h3>
               <p className="text-on-surface-variant text-sm">{engineerCount} vị trí đang mở</p>
@@ -81,9 +97,10 @@ export default async function HomePage() {
             <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
               <span className="material-symbols-outlined">code</span>
             </div>
-          </div>
+          </Link>
 
-          <div className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
+          {/* Card 3: Marketing */}
+          <Link href="/jobs?q=market" className="bg-white p-6 rounded-2xl shadow-xl shadow-blue-900/5 flex justify-between items-center group cursor-pointer hover:-translate-y-1 transition-all border border-outline-variant/10">
             <div>
               <h3 className="font-headline font-bold text-lg text-on-surface mb-1">Marketing</h3>
               <p className="text-on-surface-variant text-sm">{marketingCount} vị trí đang mở</p>
@@ -91,7 +108,8 @@ export default async function HomePage() {
             <div className="w-12 h-12 rounded-full bg-tertiary/10 text-tertiary flex items-center justify-center group-hover:bg-tertiary group-hover:text-white transition-colors">
               <span className="material-symbols-outlined">trending_up</span>
             </div>
-          </div>
+          </Link>
+
         </div>
       </section>
 
@@ -110,18 +128,16 @@ export default async function HomePage() {
             <p className="text-center py-10 text-on-surface-variant">Hiện chưa có tin tuyển dụng nào.</p>
           ) : (
             featuredJobs.map((job) => {
-              const companyName = job.user.companyProfile?.companyName || job.company;
+              const companyName = job.company; // Lấy trực tiếp từ bảng Job
               const companyLogo = job.user.companyProfile?.logoUrl;
               
               return (
                 <div key={job.id} className="bg-white p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md border border-outline-variant/15 transition-all group">
                   <div className="flex items-center gap-6">
+                    {/* Phần hiển thị Avatar/Logo trong Card Job */}
                     <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center shrink-0 overflow-hidden text-primary font-bold text-xl font-headline">
-                      {companyLogo ? (
-                        <img src={companyLogo} alt={companyName} className="w-full h-full object-cover" />
-                      ) : (
-                        companyName.charAt(0).toUpperCase()
-                      )}
+                      {/* Ưu tiên hiển thị chữ cái đầu của Tên công ty trong Job */}
+                      {companyName.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <Link href={`/jobs/${job.id}`}>
@@ -160,16 +176,22 @@ export default async function HomePage() {
             
             <div className="flex flex-wrap justify-center gap-6">
               {topCompanies.map((company) => (
-                <div key={company.id} className="bg-white w-40 h-40 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col items-center justify-center p-4 hover:-translate-y-1 transition-all">
-                  <div className="w-12 h-12 rounded-full bg-primary/5 text-primary flex items-center justify-center text-xl font-bold font-headline mb-3 overflow-hidden">
+                <Link 
+                  key={company.id} 
+                  href={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                  className="bg-white w-40 h-40 rounded-2xl shadow-sm border border-outline-variant/10 flex flex-col items-center justify-center p-4 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-primary/5 text-primary flex items-center justify-center text-xl font-bold font-headline mb-3 overflow-hidden group-hover:scale-110 transition-transform">
                      {company.logoUrl ? (
-                        <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-cover" />
+                        <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-contain p-1" />
                       ) : (
                         company.companyName.charAt(0).toUpperCase()
                       )}
                   </div>
-                  <h4 className="font-bold text-sm text-on-surface text-center line-clamp-1">{company.companyName}</h4>
-                </div>
+                  <h4 className="font-bold text-sm text-on-surface text-center line-clamp-1 group-hover:text-primary transition-colors">
+                    {company.companyName}
+                  </h4>
+                </Link>
               ))}
             </div>
           </div>

@@ -114,12 +114,14 @@ model Job {
   id           String    @id @default(cuid())
   title        String                         // Tiêu đề công việc
   company      String                         // Tên công ty tuyển dụng
+  
   description  String                         // Mô tả chi tiết công việc
   requirements String?                        // Yêu cầu công việc (tùy chọn)
   salary       String?                        // Mức lương (tùy chọn)
   // === THÊM 2 CỘT MỚI VÀO ĐÂY ===
   minSalary   Int?     // Lương tối thiểu (Lưu số: 15000000)
   maxSalary   Int?     // Lương tối đa (Lưu số: 20000000)
+  companyLogoUrl String? @db.Text // Lưu đường link ảnh logo (để dấu ? vì có thể có hoặc không)
   location     String                         // Địa điểm làm việc
   jobType      JobType   @default(FULL_TIME) // Loại công việc
   deadline     DateTime?                      // Hạn chót nộp hồ sơ (tùy chọn)

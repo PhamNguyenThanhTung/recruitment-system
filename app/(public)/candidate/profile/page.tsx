@@ -7,15 +7,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CandidateEditForm from "@/components/forms/CandidateEditForm";
 
+const getStatusStyle = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING': return 'bg-amber-50 text-amber-600 border-amber-200';
+    case 'REVIEWING': return 'bg-blue-50 text-blue-600 border-blue-200';
+    case 'INTERVIEWING': return 'bg-purple-50 text-purple-600 border-purple-200';
+    case 'OFFERED': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+    case 'REJECTED': return 'bg-rose-50 text-rose-600 border-rose-200';
+    default: return 'bg-slate-50 text-slate-500 border-slate-200';
+  }
+};
+
+const getStatusText = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING': return 'Đang chờ';
+    case 'REVIEWING': return 'Đã xem';
+    case 'INTERVIEWING': return 'Phỏng vấn';
+    case 'OFFERED': return 'Trúng tuyển';
+    case 'REJECTED': return 'Từ chối';
+    default: return status;
+  }
+};
+
 export default function CandidateProfilePage() {
   const { data: session, status } = useSession();
-  const router = useRouter(); // FIX 1: Thêm dòng này
+  const router = useRouter(); 
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'apps' | 'edit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'apps' | 'saved' | 'edit'>('overview');
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // State quản lý dữ liệu hiển thị tức thì (Live)
   const [liveProfile, setLiveProfile] = useState({
     address: "",
     skills: "",
@@ -31,28 +52,28 @@ export default function CandidateProfilePage() {
     
     const fetchData = async () => {
       try {
-        const [profileRes, appRes, recRes] = await Promise.all([
+        const [profileRes, appRes, recRes, savedRes] = await Promise.all([
           fetch("/api/profile/candidate"),
           fetch("/api/applications/my"), 
-          fetch("/api/jobs?limit=10")
+          fetch("/api/jobs?limit=10"),
+          fetch("/api/saved-jobs")
         ]);
         
         const profile = await profileRes.json();
         const appsRaw = await appRes.json();
         const recJobsRaw = await recRes.json();
+        const savedRaw = await savedRes.json(); 
 
         const allJobs = recJobsRaw.success ? recJobsRaw.data : [];
         const myApps = Array.isArray(appsRaw) ? appsRaw : (appsRaw.data || []);
+        const mySavedJobs = Array.isArray(savedRaw) ? savedRaw : []; 
 
-        // Lọc job chưa nộp
         const recommendedJobs = allJobs
           .filter((job: any) => !myApps.some((app: any) => app.jobId === job.id))
           .slice(0, 2);
         
-        // Cập nhật data tổng
-        setData({ profile, applications: myApps, recommendedJobs });
+        setData({ profile, applications: myApps, recommendedJobs, savedJobs: mySavedJobs });
         
-        // Cập nhật profile hiển thị ở sidebar
         setLiveProfile({
           address: profile?.address || "",
           skills: profile?.skills || "",
@@ -67,13 +88,35 @@ export default function CandidateProfilePage() {
     };
 
     if (session?.user) fetchData();
-  }, [session, status, router]); // FIX 2: Thêm router vào đây
+  }, [session, status, router]); 
+
+  // 🔥 HÀM XỬ LÝ XÓA VIỆC LÀM ĐÃ LƯU
+  const handleRemoveSavedJob = async (jobId: string) => {
+    try {
+      const res = await fetch('/api/saved-jobs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId }),
+      });
+
+      if (res.ok) {
+        // Cập nhật lại state trực tiếp để UI mất luôn item đó không cần F5
+        setData((prev: any) => ({
+          ...prev,
+          savedJobs: prev.savedJobs.filter((item: any) => item.jobId !== jobId)
+        }));
+      } else {
+        alert("Có lỗi xảy ra khi xóa!");
+      }
+    } catch (error) {
+      console.error("Lỗi xóa job", error);
+    }
+  };
 
   if (isLoading || !data) return <div className="pt-32 text-center font-bold">Đang đồng bộ dữ liệu Blue Ocean...</div>;
 
-  const { profile, applications, recommendedJobs } = data;
+  const { profile, applications, recommendedJobs, savedJobs = [] } = data; 
 
-  // Tính % hoàn thiện hồ sơ
   const completionCriteria = [
     { label: "Địa chỉ liên hệ", isDone: !!liveProfile.address },
     { label: "Kỹ năng chuyên môn", isDone: !!liveProfile.skills },
@@ -93,7 +136,10 @@ export default function CandidateProfilePage() {
             Chào buổi sáng, {session?.user?.name?.split(' ')[0]}!
           </h1>
           <p className="text-on-surface-variant text-lg italic text-slate-500 font-medium">
-            {activeTab === 'edit' ? "Cập nhật thông tin cá nhân." : activeTab === 'apps' ? "Quản lý các đơn ứng tuyển của bạn." : "Hệ thống đã sẵn sàng cho ngày mới."}
+            {activeTab === 'edit' ? "Cập nhật thông tin cá nhân." : 
+             activeTab === 'apps' ? "Quản lý các đơn ứng tuyển của bạn." : 
+             activeTab === 'saved' ? "Xem lại các công việc bạn đã quan tâm." : 
+             "Hệ thống đã sẵn sàng cho ngày mới."}
           </p>
         </div>
         {activeTab === 'overview' && (
@@ -140,6 +186,13 @@ export default function CandidateProfilePage() {
               </button>
 
               <button 
+                onClick={() => setActiveTab('saved')}
+                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'saved' ? 'bg-red-50 text-red-500' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                <span className="material-symbols-outlined">favorite</span> Việc làm đã lưu
+              </button>
+
+              <button 
                 onClick={() => setActiveTab('edit')}
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'edit' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50'}`}
               >
@@ -171,9 +224,9 @@ export default function CandidateProfilePage() {
           {activeTab === 'edit' ? (
             <div className="bg-white p-2 rounded-[40px] shadow-sm border border-slate-100">
                <CandidateEditForm 
-                  initialData={data.profile} 
-                  user={session?.user} 
-                  onProfileUpdate={(newData: any) => setLiveProfile(prev => ({...prev, ...newData}))}
+                 initialData={data.profile} 
+                 user={session?.user} 
+                 onProfileUpdate={(newData: any) => setLiveProfile(prev => ({...prev, ...newData}))}
                />
             </div>
           ) : activeTab === 'apps' ? (
@@ -193,10 +246,59 @@ export default function CandidateProfilePage() {
                           <p className="text-xs text-slate-300 mt-1 italic">Ngày nộp: {new Date(app.appliedAt).toLocaleDateString('vi-VN')}</p>
                         </div>
                       </div>
-                      <span className="px-6 py-2 bg-primary/10 text-primary text-[11px] font-black uppercase rounded-2xl border border-primary/20">{app.status}</span>
+                      <span className={`px-5 py-2 text-[11px] font-black uppercase rounded-2xl border ${getStatusStyle(app.status)} shadow-sm`}>
+                        {getStatusText(app.status)}
+                      </span>
                     </div>
                   )) : (
                     <div className="p-20 text-center text-slate-300 font-bold italic">Chưa có dữ liệu ứng tuyển nào.</div>
+                  )}
+                </div>
+            </div>
+          ) : activeTab === 'saved' ? (
+            <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden">
+                <div className="p-8 border-b border-slate-50">
+                  <h3 className="font-black text-2xl flex items-center gap-2 text-on-surface">
+                    <span className="material-symbols-outlined text-red-500 text-3xl">favorite</span> Việc làm đã lưu
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-1 font-medium">Bạn đang lưu trữ {savedJobs.length} công việc.</p>
+                </div>
+                <div className="divide-y divide-slate-50 text-sm">
+                  {savedJobs.length > 0 ? savedJobs.map((item: any) => (
+                    <div key={item.id} className="p-8 flex items-center justify-between hover:bg-red-50/30 transition-all">
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 font-black text-2xl shadow-inner">{item.job.title.charAt(0)}</div>
+                        <div>
+                          <Link href={`/jobs/${item.job.id}`}>
+                            <h4 className="font-black text-on-surface text-lg hover:text-red-500 transition-colors">{item.job.title}</h4>
+                          </Link>
+                          <p className="text-sm text-slate-400 font-bold uppercase tracking-tight">{item.job.company}</p>
+                          <p className="text-xs text-slate-300 mt-1 italic">Lưu ngày: {new Date(item.createdAt).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                      </div>
+                      
+                      {/* 🔥 NÚT ACTION MỚI CÓ NÚT XÓA Ở ĐÂY */}
+                      <div className="flex items-center gap-2">
+                        <Link href={`/jobs/${item.job.id}`}>
+                          <button className="px-5 py-2.5 bg-white text-primary text-[11px] font-black uppercase rounded-xl hover:bg-primary/10 transition-all shadow-sm border border-outline-variant/20">
+                            Chi tiết
+                          </button>
+                        </Link>
+                        <button 
+                          onClick={() => handleRemoveSavedJob(item.job.id)}
+                          className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100"
+                          title="Bỏ lưu"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </div>
+
+                    </div>
+                  )) : (
+                    <div className="p-20 text-center text-slate-300 font-bold italic">
+                      <span className="material-symbols-outlined text-6xl text-slate-200 block mb-4">heart_broken</span>
+                      Bạn chưa lưu công việc nào.
+                    </div>
                   )}
                 </div>
             </div>
@@ -207,13 +309,13 @@ export default function CandidateProfilePage() {
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã nộp</p>
                   <h2 className="text-3xl font-black text-primary">{applications.length}</h2>
                 </div>
+                <div className="bg-white p-6 rounded-3xl border-l-4 border-red-400 shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã lưu</p>
+                  <h2 className="text-3xl font-black text-red-500">{savedJobs.length}</h2>
+                </div>
                 <div className="bg-white p-6 rounded-3xl border-l-4 border-emerald-500 shadow-sm">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Phỏng vấn</p>
                   <h2 className="text-3xl font-black text-emerald-600">00</h2>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border-l-4 border-slate-300 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã xem</p>
-                  <h2 className="text-3xl font-black text-on-surface">00</h2>
                 </div>
               </div>
 
@@ -237,7 +339,9 @@ export default function CandidateProfilePage() {
                           <p className="text-xs text-slate-400 uppercase font-bold">{app.job.company}</p>
                         </div>
                       </div>
-                      <span className="px-4 py-2 bg-slate-100 text-[10px] font-black uppercase rounded-xl text-slate-500">{app.status}</span>
+                      <span className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-xl border ${getStatusStyle(app.status)}`}>
+                        {getStatusText(app.status)}
+                      </span>
                     </div>
                   )) : (
                     <p className="p-10 text-center text-slate-300 font-bold italic">Chưa có đơn ứng tuyển.</p>
@@ -270,7 +374,7 @@ export default function CandidateProfilePage() {
           )}
         </section>
 
-        {/* RIGHT SIDEBAR */}
+        {/* RIGHT SIDEBAR GIỮ NGUYÊN */}
         <aside className="col-span-12 lg:col-span-3 space-y-8">
           <div className="bg-white p-8 rounded-[40px] shadow-sm border border-outline-variant/10">
             <h3 className="text-lg font-black mb-8 flex items-center gap-3">

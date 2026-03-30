@@ -13,16 +13,9 @@ export default async function JobDetailPage({
   const { id } = await params;
   const session = await auth(); 
 
-  // 1. KÉO DỮ LIỆU JOB HIỆN TẠI
+  // 1. KÉO DỮ LIỆU JOB HIỆN TẠI (Không cần include companyProfile nữa cho nhẹ Server)
   const job = await db.job.findUnique({
-    where: { id },
-    include: {
-      user: {
-        include: {
-          companyProfile: true, 
-        },
-      },
-    },
+    where: { id }
   });
 
   if (!job || job.status !== JobStatus.OPEN) {
@@ -42,18 +35,12 @@ export default async function JobDetailPage({
       status: JobStatus.OPEN, 
     },
     take: 3, 
-    include: {
-      user: {
-        include: { companyProfile: true },
-      },
-    },
     orderBy: { createdAt: 'desc' }
   });
 
-  // 🔥 Fallback data: Ưu tiên lấy Logo từ Job -> Profile HR -> Rỗng
-  const companyProfile = job.user?.companyProfile;
-  const companyName = job.company || companyProfile?.companyName;
-  const companyLogo = job.companyLogoUrl || companyProfile?.logoUrl || null;
+  // 🔥 LẤY CHUẨN 100% TỪ BẢNG JOB (Đã ngắt hoàn toàn với CompanyProfile)
+  const companyName = job.company;
+  const companyLogo = job.companyLogoUrl;
 
   // Logic kiểm tra Role
   const canApply = !session || session.user?.role === "CANDIDATE";
@@ -87,19 +74,17 @@ export default async function JobDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* CỘT TRÁI: THÔNG TIN CHI TIẾT */}
           <div className="lg:col-span-8 space-y-8">
+            
             {/* Hiển thị Header Công Ty */}
             <div className="flex items-center gap-6 mb-8 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
-              
-              {/* 🔥 BOX LOGO ĐÃ ĐƯỢC CHĂM CHÚT LẠI */}
               <div className="w-20 h-20 rounded-xl overflow-hidden bg-surface-container-high border border-outline-variant/10 flex items-center justify-center shrink-0">
                 {companyLogo ? (
                   <img 
                     src={companyLogo} 
                     alt={companyName} 
-                    className="w-full h-full object-contain p-2" // Thêm padding để logo không bị sát viền
+                    className="w-full h-full object-contain p-2"
                   />
                 ) : (
-                  // Nếu rỗng thì hiện chữ cái đầu cho đồng bộ với trang chủ
                   <span className="font-headline font-bold text-3xl text-primary">
                     {companyName?.charAt(0).toUpperCase()}
                   </span>
@@ -110,20 +95,11 @@ export default async function JobDetailPage({
                 <h1 className="text-3xl font-bold text-gray-900">{job.title}</h1>
                 <div className="flex items-center gap-4 mt-2 text-gray-600">
                   <p className="font-medium text-blue-600">{companyName}</p>
-                  
-                  {companyProfile?.size && (
-                    <span className="flex items-center gap-1 text-sm bg-gray-100 px-2 py-1 rounded-md">
-                      <span className="material-symbols-outlined text-[16px]">groups</span>
-                      {companyProfile.size} nhân viên
-                    </span>
-                  )}
-                  
-                  {companyProfile?.foundedYear && (
-                    <span className="flex items-center gap-1 text-sm bg-gray-100 px-2 py-1 rounded-md">
-                      <span className="material-symbols-outlined text-[16px]">history</span>
-                      Thành lập {companyProfile.foundedYear}
-                    </span>
-                  )}
+                  <p className="text-sm flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">location_on</span>
+                    {job.location}
+                  </p>
+                  {/* ĐÃ CẮT BỎ QUY MÔ & NĂM THÀNH LẬP GÂY HIỂU LẦM Ở ĐÂY */}
                 </div>
               </div>
             </div>
@@ -183,7 +159,7 @@ export default async function JobDetailPage({
                 )}
                 
                 <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-xs font-label opacity-70">
-                  
+                  <span className="truncate max-w-[150px]">ID: {job.id}</span>
                   <div className="flex gap-4">
                     <span className="material-symbols-outlined cursor-pointer hover:opacity-100">share</span>
                   </div>
@@ -191,26 +167,18 @@ export default async function JobDetailPage({
               </div>
             </div>
 
+            {/* BLOCK THÔNG TIN CÔNG TY SIÊU GỌN NHẸ MỚI */}
             <div className="bg-surface-container-lowest p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
-              <h3 className="text-lg font-extrabold font-headline mb-6 text-on-surface">Về công ty</h3>
-              {companyProfile ? (
-                <div className="space-y-4">
-                  
-                  <div className="flex justify-between items-start gap-4">
-                    <span className="text-on-surface-variant text-sm shrink-0">Địa chỉ</span>
-                    <span className="font-bold text-sm text-right line-clamp-3">{companyProfile.address}</span>
-                  </div>
-                  {companyProfile.description && (
-                    <div className="mt-6 pt-6 border-t border-outline-variant/15">
-                      <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-4">
-                        {companyProfile.description}
-                      </p>
-                    </div>
-                  )}
+              <h3 className="text-lg font-extrabold font-headline mb-6 text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">domain</span>
+                Thông tin địa điểm
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-start gap-4">
+                  <span className="text-on-surface-variant text-sm shrink-0">Nơi làm việc</span>
+                  <span className="font-bold text-sm text-right line-clamp-3">{job.location}</span>
                 </div>
-              ) : (
-                <p className="text-sm text-outline italic">Chưa có thông tin chi tiết về công ty này.</p>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -221,21 +189,20 @@ export default async function JobDetailPage({
             <h2 className="text-3xl font-extrabold font-headline mb-10 text-on-surface">Việc làm tương tự</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {similarJobs.map((simJob) => {
-                const simCompany = simJob.user?.companyProfile;
-                const simCompanyName = simJob.company || simCompany?.companyName;
-                // 🔥 Cập nhật logic Logo cho các Job tương tự luôn
-                const simCompanyLogo = simJob.companyLogoUrl || simCompany?.logoUrl || null;
+                // Lấy 100% từ Job
+                const simCompanyName = simJob.company;
+                const simCompanyLogo = simJob.companyLogoUrl;
                 
                 return (
                   <Link href={`/jobs/${simJob.id}`} key={simJob.id} className="block group h-full">
                     <div className="bg-surface-container-lowest p-6 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.04)] group-hover:shadow-[0px_15px_50px_rgba(0,89,187,0.1)] transition-all h-full flex flex-col justify-between border border-transparent group-hover:border-outline-variant/20">
                       <div>
                         <div className="flex justify-between items-start mb-6">
-                          <div className="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden flex items-center justify-center border border-outline-variant/10">
                             {simCompanyLogo ? (
                               <img className="w-full h-full object-contain p-1" alt={simCompanyName} src={simCompanyLogo} />
                             ) : (
-                              <span className="font-headline font-bold text-xl text-primary">{simCompanyName?.charAt(0).toUpperCase()}</span>
+                              <span className="font-headline font-bold text-xl text-primary">{simCompanyName.charAt(0).toUpperCase()}</span>
                             )}
                           </div>
                           <button className="text-outline hover:text-primary transition-colors">

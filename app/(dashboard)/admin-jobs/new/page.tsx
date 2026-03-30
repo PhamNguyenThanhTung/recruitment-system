@@ -1,13 +1,19 @@
-"use client"; // 🔥 CHỐT HẠ: Thêm dòng này lên đầu để biến file này thành Client Component
+// File: app/(dashboard)/admin-jobs/new/page.tsx
+// 🛑 TUYỆT ĐỐI KHÔNG CÓ DÒNG "use client" Ở ĐÂY!
 
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
 
-// Bây giờ ssr: false sẽ được chấp nhận hoàn toàn vì đã ở Client Component
+// Dùng dynamic import để "nhốt" cái Form lại, không cho nó chạy lúc Build
 const JobForm = dynamic(() => import("./JobForm"), { 
-  ssr: false,
-  loading: () => <div className="p-20 text-center text-primary font-bold">Đang tải biểu mẫu...</div>
+  ssr: false, 
 });
 
 export default function NewJobPage() {
-  return <JobForm />;
+  return (
+    // Mặc áo giáp Suspense ở cấp độ cao nhất
+    <Suspense fallback={<div className="p-20 text-center font-bold">Đang chuẩn bị biểu mẫu...</div>}>
+      <JobForm />
+    </Suspense>
+  );
 }

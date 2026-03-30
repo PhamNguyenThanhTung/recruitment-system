@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react"; // 🔥 Đã thêm Suspense
 
-export default function NotFound() {
+// 1. Tách phần nội dung chính ra một Component riêng
+function NotFoundContent() {
   const [previousPath, setPreviousPath] = useState<string | null>(null);
 
   useEffect(() => {
-    // Lấy URL trang trước đó từ Document.referrer
-    // Nếu user đến từ một trang trong cùng domain, ta sẽ có link
     if (typeof window !== "undefined") {
       const referrer = document.referrer;
       if (referrer.includes(window.location.origin)) {
@@ -18,11 +17,8 @@ export default function NotFound() {
 
   const handleHardBack = () => {
     if (previousPath) {
-      // Dùng window.location.href thay vì router.push/back
-      // Lệnh này ép trình duyệt hủy bỏ toàn bộ cache cũ và tải lại trang từ Server
       window.location.href = previousPath;
     } else {
-      // Nếu không tìm thấy lịch sử, đẩy về profile và tải lại toàn bộ
       window.location.href = "/candidate/profile";
     }
   };
@@ -47,7 +43,6 @@ export default function NotFound() {
         </div>
 
         <div className="flex flex-col gap-3">
-          {/* NÚT QUAN TRỌNG: Dùng window.location.href để phá cache */}
           <button
             onClick={handleHardBack}
             className="w-full py-4 bg-primary text-white rounded-2xl font-black text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -65,5 +60,18 @@ export default function NotFound() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. Export hàm NotFound chính được bọc trong Suspense
+export default function NotFound() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center font-bold text-primary">
+        Đang tải...
+      </div>
+    }>
+      <NotFoundContent />
+    </Suspense>
   );
 }

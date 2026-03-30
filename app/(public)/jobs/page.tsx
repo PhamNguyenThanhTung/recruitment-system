@@ -48,13 +48,10 @@ export default async function JobsPage({
     andConditions.push({ jobType: { in: jobType.split(",") as any[] } });
   }
   
-  // Lọc Lương (Tìm các Job có minSalary hoặc maxSalary thỏa mãn)
+  // Lọc Lương (Đảm bảo mức lương thấp nhất của Job phải đáp ứng kỳ vọng)
   if (filterMinSalary !== null) {
-    andConditions.push({
-      OR: [
-        { minSalary: { gte: filterMinSalary } }, 
-        { maxSalary: { gte: filterMinSalary } }  
-      ],
+    andConditions.push({ 
+      minSalary: { gte: filterMinSalary } 
     });
   }
 

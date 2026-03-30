@@ -15,12 +15,14 @@ export default function NewJobPage() {
   const [previewSalary, setPreviewSalary] = React.useState("Mức lương");
   const [previewLogoUrl, setPreviewLogoUrl] = React.useState("");
   
+  const [isMounted, setIsMounted] = React.useState(false);
   // 🔥 Thêm 2 state này để quản lý Tên công ty và Địa điểm (Có thể chỉnh sửa)
   const [previewCompany, setPreviewCompany] = React.useState("Đang tải...");
   const [previewLocation, setPreviewLocation] = React.useState("Đang tải...");
 
   // ===== Fetch dữ liệu CompanyProfile từ API =====
   React.useEffect(() => {
+    setIsMounted(true);
     async function fetchCompanyProfile() {
       try {
         const res = await fetch('/api/profile/company');
@@ -89,6 +91,10 @@ export default function NewJobPage() {
     }
   }
 
+  // BỔ SUNG 3 DÒNG NÀY NGAY TRƯỚC LÚC RETURN GIAO DIỆN
+  if (!isMounted) {
+    return null;
+  }
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-10">

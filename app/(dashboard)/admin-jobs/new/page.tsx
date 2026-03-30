@@ -1,11 +1,11 @@
 "use client";
-
+import { Suspense } from "react";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CldUploadWidget } from 'next-cloudinary';
 
-export default function NewJobPage() {
+ function NewJobPageContent() {
   const router = useRouter();
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -408,5 +408,12 @@ export default function NewJobPage() {
         </div>
       </div>
     </div>
+  );
+}
+export default function NewJobPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-on-surface-variant">Đang tải biểu mẫu...</div>}>
+      <NewJobPageContent />
+    </Suspense>
   );
 }

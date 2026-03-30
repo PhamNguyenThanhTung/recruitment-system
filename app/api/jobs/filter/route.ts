@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // === 2. XÂY DỰNG WHERE CONDITIONS (CHỈ CHO DB) ===
     const where: Prisma.JobWhereInput = {
-      status: "Open", 
+      status: "OPEN", 
     };
 
     if (q) {

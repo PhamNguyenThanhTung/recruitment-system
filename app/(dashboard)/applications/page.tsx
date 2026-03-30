@@ -171,11 +171,11 @@ export default function ApplicationsListPage() {
               className="w-full pl-12 pr-10 py-3 rounded-xl border border-outline-variant/20 bg-surface focus:ring-2 focus:ring-primary focus:border-transparent outline-none appearance-none transition-all text-sm font-semibold cursor-pointer"
             >
               <option value="">Tất cả trạng thái</option>
-              <option value="pending">Chờ xử lý</option>
-              <option value="reviewed">Đã xem</option>
-              <option value="interview">Phỏng vấn</option>
-              <option value="accepted">Trúng tuyển</option>
-              <option value="rejected">Từ chối</option>
+              <option value="PENDING">Chờ xử lý</option>
+              <option value="REVIEWED">Đã xem</option>
+              <option value="INTERVIEW">Phỏng vấn</option>
+              <option value="ACCEPTED">Trúng tuyển</option>
+              <option value="REJECTED">Từ chối</option>
             </select>
             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
           </div>

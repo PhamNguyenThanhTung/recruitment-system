@@ -9,7 +9,7 @@ export interface User {
   createdAt: Date;
 }
 
-export type JobStatus = "Draft" | "Open" | "Closed";
+export type JobStatus = "DRAFT" | "OPEN" | "CLOSED";
 
 export interface Job {
   id: string;
@@ -25,7 +25,7 @@ export interface Job {
   createdAt: Date;
 }
 
-export type ApplicationStatus = "pending" | "reviewed" | "accepted" | "rejected" | "interview";
+export type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED" | "INTERVIEW";
 
 export interface Application {
   id: string;

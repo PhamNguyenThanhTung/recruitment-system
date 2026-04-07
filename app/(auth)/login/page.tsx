@@ -10,8 +10,10 @@ export default function LoginPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  
+  // 🔥 MỚI: Thêm State quản lý nút "Ghi nhớ đăng nhập"
+  const [rememberMe, setRememberMe] = React.useState(false);
 
-  // Giữ nguyên logic xử lý Đăng nhập của bạn
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
@@ -22,9 +24,11 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
+      // 🔥 MỚI: Truyền thêm trạng thái remember vào credentials
       const result = await signIn("credentials", {
         email,
         password,
+        remember: rememberMe.toString(), // Truyền dạng string để Backend dễ bắt
         redirect: false,
       });
 
@@ -40,7 +44,7 @@ export default function LoginPage() {
 
       // Điều hướng dựa trên Role
       if (session?.user?.role === "HR") {
-        window.location.href = "/dashboard"; // Đã trỏ thẳng về trang Analytics mới
+        window.location.href = "/dashboard"; 
       } else {
         window.location.href = "/";
       }
@@ -69,7 +73,7 @@ export default function LoginPage() {
           {/* Tiêu đề & Lời chào */}
           <div className="mb-12">
             <h1 className="font-headline font-black text-3xl md:text-4xl tracking-tight text-primary">RecruitSync</h1>
-            <p className="mt-2 text-on-surface-variant font-medium">Nền tảng tuyển dụng thông minh thế hệ mới.</p>
+            <p className="mt-2 text-on-surface-variant font-medium">Nền tảng tuyển dụng thế hệ mới.</p>
           </div>
           
           <div className="space-y-8">
@@ -138,7 +142,13 @@ export default function LoginPage() {
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className="relative flex items-center">
-                    <input type="checkbox" className="peer h-5 w-5 rounded border-outline-variant/30 text-primary focus:ring-primary/20 bg-surface-container-lowest transition-all cursor-pointer" />
+                    {/* 🔥 MỚI: Gắn state rememberMe vào đây */}
+                    <input 
+                      type="checkbox" 
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="peer h-5 w-5 rounded border-outline-variant/30 text-primary focus:ring-primary/20 bg-surface-container-lowest transition-all cursor-pointer" 
+                    />
                   </div>
                   <span className="text-sm font-medium text-on-surface-variant group-hover:text-on-surface">Ghi nhớ đăng nhập</span>
                 </label>
@@ -168,8 +178,12 @@ export default function LoginPage() {
               <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold text-outline bg-surface px-4 w-fit mx-auto">Hoặc</div>
             </div>
             
-            {/* Nút Google (Dummy) */}
-            <button type="button" className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl bg-surface-container-lowest border border-outline-variant/15 hover:bg-surface-container-low transition-all duration-200 font-bold text-on-surface group">
+            {/* 🔥 MỚI: Nút Đăng nhập Google đã có chức năng */}
+            <button 
+              type="button" 
+              onClick={() => signIn("google", { callbackUrl: "/" })}
+              className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl bg-surface-container-lowest border border-outline-variant/15 hover:bg-surface-container-low transition-all duration-200 font-bold text-on-surface group"
+            >
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 group-hover:scale-110 transition-transform" alt="Google" />
               Đăng nhập với Google
             </button>
@@ -204,7 +218,7 @@ export default function LoginPage() {
                 <span className="material-symbols-outlined text-2xl">verified</span>
               </div>
               <div>
-                <p className="font-headline font-extrabold text-xl">Tuyển dụng thông minh</p>
+                <p className="font-headline font-extrabold text-xl">Tuyển dụng </p>
                 <p className="text-xs font-label uppercase tracking-widest text-white/70 font-bold">Real-time Pipeline</p>
               </div>
             </div>

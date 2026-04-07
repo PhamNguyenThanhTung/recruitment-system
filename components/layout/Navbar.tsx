@@ -15,7 +15,7 @@ export default function Navbar() {
         <div className="flex items-center flex-1 gap-4 lg:gap-8">
           <Link href="/">
             <h1 className="text-2xl md:text-3xl font-black text-primary font-headline tracking-tight">
-              RecruitSync.
+              Shisha
             </h1>
           </Link>
 

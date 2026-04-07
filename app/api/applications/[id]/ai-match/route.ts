@@ -45,9 +45,7 @@ export async function POST(
       Giới thiệu: ${application.user.candidateProfile.bio || 'Không có'}
     `;
 
-    // Khởi tạo Model Gemini 1.5 Flash (nhẹ, nhanh)
-    // 🔥 Dùng bản 2.5 Flash siêu nhanh, siêu thông minh của sếp:
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Viết Prompt (Câu lệnh) ép AI đóng vai chuyên gia nhân sự và trả về JSON chuẩn
     const prompt = `

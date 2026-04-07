@@ -275,7 +275,7 @@ export default function OnboardingPage() {
             <span className="text-secondary-fixed">Nhân tài hàng đầu.</span>
           </h3>
           <p className="text-lg text-white/80 leading-relaxed max-w-md font-medium">
-            Thiết lập không gian làm việc của bạn trên RecruitSync để kết nối với những ứng viên xuất sắc nhất.
+            Thiết lập không gian làm việc của bạn trên Shisha để kết nối với những ứng viên xuất sắc nhất.
           </p>
           
           {/* Vòng tròn trang trí */}

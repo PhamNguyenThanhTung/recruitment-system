@@ -11,34 +11,37 @@ cloudinary.config({
 
 /**
  * Hàm tải file lên Cloudinary
- * NÂNG CẤP: Nhận trực tiếp đối tượng `File` từ FormData của Next.js
  */
 export const uploadToCloudinary = async (
   file: File,
   folder: string = 'cv_uploads'
 ): Promise<string> => {
-  // 1. Chuyển đổi File sang Buffer ngay tại đây để API Route gọn gàng hơn
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+
+  // 🔥 BƯỚC 1: Lấy đuôi file (ví dụ: "pdf", "docx") từ tên file gốc
+  const extension = file.name.split('.').pop();
+  
+  // 🔥 BƯỚC 2: Tạo một cái tên file chống trùng lặp, BẮT BUỘC PHẢI CHỨA ĐUÔI FILE
+  const uniqueFilename = `cv_${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
 
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
-        resource_type: 'auto', // Tự động nhận diện ảnh hoặc file PDF
+        resource_type: 'raw', 
+        public_id: uniqueFilename, // 🔥 BƯỚC 3: Truyền tên file có đuôi vào đây
       },
-      // 2. FIX LỖI "ANY": Import và sử dụng type chính chủ từ Cloudinary
       (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
         if (error || !result) {
           console.error("Cloudinary upload failed:", error);
           reject(error || new Error('Cloudinary upload failed'));
         } else {
-          resolve(result.secure_url); // Trả về link HTTPS
+          resolve(result.secure_url); 
         }
       }
     );
 
-    // Gửi buffer tới upload stream
     uploadStream.end(buffer);
   });
 };

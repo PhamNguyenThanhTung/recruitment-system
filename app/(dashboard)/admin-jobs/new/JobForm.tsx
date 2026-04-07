@@ -89,7 +89,7 @@ export default function JobForm() {
     <div className="max-w-7xl mx-auto">
         <div className="mb-10">
           <h1 className="font-headline text-3xl md:text-4xl font-extrabold text-on-surface mb-2">Tạo tin tuyển dụng mới</h1>
-          <p className="text-on-surface-variant text-lg">Tiếp cận ứng viên tiềm năng trên hệ thống RecruitSync.</p>
+          <p className="text-on-surface-variant text-lg">Tiếp cận ứng viên tiềm năng trên hệ thống Shisha.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">

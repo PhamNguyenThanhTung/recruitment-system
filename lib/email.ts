@@ -33,7 +33,7 @@ export async function sendNewApplicationNotificationEmail(
     return;
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || 'Recruitment System <onboarding@resend.dev>';
+  const from = process.env.RESEND_FROM_EMAIL || 'Shisha <onboarding@resend.dev>';
 
   try {
     const { data, error } = await resend.emails.send({
@@ -68,7 +68,7 @@ export async function sendStatusUpdateEmail(params: SendStatusUpdateEmailParams)
     return;
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || 'Recruitment System <onboarding@resend.dev>';
+  const from = process.env.RESEND_FROM_EMAIL || 'Shisha <onboarding@resend.dev>';
 
   try {
     const { data, error } = await resend.emails.send({

@@ -13,7 +13,7 @@ const jakarta = Plus_Jakarta_Sans({ variable: "--font-headline", subsets: ["lati
 const manrope = Manrope({ variable: "--font-body", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RecruitSync | Modern Recruitment Solutions",
+  title: "Shisha | Modern Recruitment Solutions",
   description: "Multi-tenant recruitment platform",
 };
 

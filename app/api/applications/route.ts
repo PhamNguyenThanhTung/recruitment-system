@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
+    
     // Upload CV lên Cloudinary
     const cvFileUrl = await uploadToCloudinary(cvFile, 'cv_uploads');
 

@@ -208,7 +208,7 @@ export default async function HomePage() {
                 Sẵn sàng tìm kiếm <br/>công việc mơ ước?
               </h2>
               <p className="text-white/80 mb-8 font-medium">
-                Tham gia cùng hàng ngàn chuyên gia đã tìm thấy bước tiến tiếp theo trong sự nghiệp của họ với RecruitSync.
+                Tham gia cùng hàng ngàn chuyên gia đã tìm thấy bước tiến tiếp theo trong sự nghiệp của họ với Shisha
               </p>
               <Link href="/register">
                 <button className="bg-secondary-fixed text-on-secondary-fixed px-8 py-4 rounded-xl font-bold font-headline hover:brightness-105 transition-all shadow-lg">

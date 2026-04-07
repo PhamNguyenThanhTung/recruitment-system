@@ -255,14 +255,7 @@ export default function ApplicationsListPage() {
                       >
                         <span className="material-symbols-outlined">visibility</span>
                       </button>
-                      <a 
-                        href={`mailto:${app.user.email}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center justify-center p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" 
-                        title="Gửi Email"
-                      >
-                        <span className="material-symbols-outlined">mail</span>
-                      </a>
+              
                     </div>
                   </td>
                 </tr>

@@ -20,6 +20,9 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
     phone: user?.phone || "",
     skills: initialData?.skills || "",
     bio: initialData?.bio || "",
+    // 🔥 THÊM 2 TRƯỜNG NÀY ĐỂ KHỚP DATABASE
+    experience: "",
+    education: "",
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -27,21 +30,36 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🔥 FIX LỖI CÚ PHÁP Ở ĐÂY: Dùng Arrow function cho prev state
+  // Parse JSONB từ DB (nếu có) để hiển thị thành text cho dễ sửa
+  const extractTextFromJson = (data: any) => {
+    if (!data) return "";
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed.map(item => JSON.stringify(item)).join('\n') : data;
+      } catch {
+        return data;
+      }
+    }
+    return Array.isArray(data) ? data.map(item => JSON.stringify(item)).join('\n') : JSON.stringify(data);
+  };
+
   useEffect(() => {
     if (initialData) {
       setFormData(prev => ({
         address: initialData.address || "",
-        phone: prev.phone || user?.phone || "", // Ưu tiên số đang gõ trên form
+        phone: prev.phone || user?.phone || "", 
         skills: initialData.skills || "",
         bio: initialData.bio || "",
+        // Lấy từ DB ra
+        experience: extractTextFromJson(initialData.experience),
+        education: extractTextFromJson(initialData.education),
       }));
     }
   }, [initialData, user]);
 
-  // 🔥 HÀM FORMAT SĐT CHUẨN 10 SỐ (0xxx xxx xxx)
   const formatPhoneNumber = (value: string) => {
-    const cleaned = value.replace(/\D/g, '').slice(0, 10); // Lấy tối đa 10 số
+    const cleaned = value.replace(/\D/g, '').slice(0, 10);
     if (cleaned.length <= 4) return cleaned;
     if (cleaned.length <= 7) return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
     return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7, 10)}`;
@@ -49,12 +67,8 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
 
   const handleInputChange = (field: string, value: string) => {
     let finalValue = value;
+    if (field === 'phone') finalValue = formatPhoneNumber(value);
     
-    // Nếu là ô phone, ép format ngay lập tức
-    if (field === 'phone') {
-      finalValue = formatPhoneNumber(value);
-    }
-
     setFormData(prev => ({ ...prev, [field]: finalValue }));
     if (onProfileUpdate) onProfileUpdate({ [field]: finalValue });
   };
@@ -85,29 +99,23 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 🔥 VALIDATE SỐ ĐIỆN THOẠI TRƯỚC KHI GỬI API
-    const cleanPhone = formData.phone.replace(/\s/g, ''); // Xóa khoảng trắng để đếm số
+    const cleanPhone = formData.phone.replace(/\s/g, ''); 
     
     if (cleanPhone) {
-      if (cleanPhone.length !== 10) {
-        return toast.error("Số điện thoại không hợp lệ (phải đủ 10 số)");
-      }
-      if (!cleanPhone.startsWith('0')) {
-        return toast.error("Số điện thoại phải bắt đầu bằng số 0");
-      }
+      if (cleanPhone.length !== 10) return toast.error("Số điện thoại không hợp lệ (phải đủ 10 số)");
+      if (!cleanPhone.startsWith('0')) return toast.error("Số điện thoại phải bắt đầu bằng số 0");
     }
     setIsLoading(true);
 
     try {
       const data = new FormData();
       data.append("address", formData.address);
-      
-      // Xóa khoảng trắng để gửi lên DB số sạch (VD: 0912345678)
-      const cleanPhone = formData.phone.replace(/\s/g, '');
       data.append("phone", cleanPhone);
-      
       data.append("skills", formData.skills);
       data.append("bio", formData.bio);
+      // 🔥 GỬI THÊM 2 TRƯỜNG NÀY LÊN API
+      data.append("experience", formData.experience);
+      data.append("education", formData.education);
       
       if (avatarFile) data.append("avatar", avatarFile);
       if (cvFile) data.append("cv", cvFile);
@@ -119,15 +127,11 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
 
       if (res.ok) {
         const resultData = await res.json();
-        
-        // Bắn tín hiệu update Cookie để giữ ảnh
         await update({ 
           ...(resultData.imageUrl && { image: resultData.imageUrl }),
           phone: cleanPhone 
         });
-
         toast.success("Hồ sơ đã được lưu vĩnh viễn!");
-        // 🔥 ĐÃ FIX: Không set null nữa để file vẫn hiện trên màn hình
       } else {
         const errorData = await res.json();
         toast.error(errorData.message || "Lỗi khi lưu dữ liệu");
@@ -142,13 +146,9 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* 1. Header & Avatar Upload */}
       <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-6">
-          <div 
-            className="relative group cursor-pointer" 
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <div className="w-28 h-28 rounded-full border-4 border-blue-50 bg-primary text-white flex items-center justify-center font-headline font-black text-4xl overflow-hidden shadow-2xl transition-all group-hover:scale-105 group-hover:brightness-90">
               {avatarPreview ? (
                 <img src={avatarPreview} className="w-full h-full object-cover" alt="avatar" />
@@ -168,17 +168,12 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
             </p>
           </div>
         </div>
-        <button 
-          type="button" 
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-[#1a1c1e] text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl"
-        >
+        <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-[#1a1c1e] text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl">
           Đổi ảnh đại diện
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-8">
-        {/* 2. Cột trái: Thông tin chính */}
         <div className="col-span-12 lg:col-span-7 space-y-8">
           <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
             <h3 className="text-xl font-black font-headline mb-8 flex items-center gap-3">
@@ -231,7 +226,7 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
             </div>
 
             <div className="mt-10 space-y-3">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Giới thiệu ngắn</label>
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Giới thiệu bản thân</label>
               <textarea 
                 value={formData.bio}
                 onChange={(e) => handleInputChange('bio', e.target.value)}
@@ -240,25 +235,52 @@ export default function CandidateEditForm({ initialData, user, onProfileUpdate }
                 placeholder="Tôi là một lập trình viên đam mê..."
               />
             </div>
+            
+            {/* 🔥 KHU VỰC THÊM HỌC VẤN */}
+            <div className="mt-8 space-y-3">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Học vấn</label>
+              <textarea 
+                value={formData.education}
+                onChange={(e) => handleInputChange('education', e.target.value)}
+                rows={3}
+                className="w-full p-6 rounded-[32px] bg-slate-50 focus:bg-white border-2 border-transparent focus:border-primary outline-none transition-all font-bold resize-none text-slate-700 shadow-inner"
+                placeholder="Đại học Bách Khoa Hà Nội - Kỹ sư CNTT (2018 - 2022)"
+              />
+            </div>
+
           </div>
         </div>
 
-        {/* 3. Cột phải: Kỹ năng & Action */}
         <div className="col-span-12 lg:col-span-5 space-y-8">
           <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
             <h3 className="text-xl font-black font-headline mb-8 flex items-center gap-3">
               <span className="w-2 h-6 bg-emerald-500 rounded-full"></span>
-              Kỹ năng chính
+              Kinh nghiệm & Kỹ năng
             </h3>
-            <div className="space-y-3">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Chuyên môn chính</label>
-              <textarea 
-                value={formData.skills}
-                onChange={(e) => handleInputChange('skills', e.target.value)}
-                rows={8}
-                className="w-full p-6 rounded-[32px] bg-slate-50 focus:bg-white border-2 border-transparent focus:border-emerald-500 outline-none transition-all font-bold resize-none text-slate-700 shadow-inner"
-                placeholder="React, Next.js, Node.js, Python..."
-              />
+
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Kỹ năng chuyên môn</label>
+                <textarea 
+                  value={formData.skills}
+                  onChange={(e) => handleInputChange('skills', e.target.value)}
+                  rows={4}
+                  className="w-full p-6 rounded-[32px] bg-slate-50 focus:bg-white border-2 border-transparent focus:border-emerald-500 outline-none transition-all font-bold resize-none text-slate-700 shadow-inner"
+                  placeholder="React, Next.js, Node.js, Python..."
+                />
+              </div>
+
+              {/* 🔥 KHU VỰC THÊM KINH NGHIỆM */}
+              <div className="space-y-3">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1">Kinh nghiệm làm việc</label>
+                <textarea 
+                  value={formData.experience}
+                  onChange={(e) => handleInputChange('experience', e.target.value)}
+                  rows={6}
+                  className="w-full p-6 rounded-[32px] bg-slate-50 focus:bg-white border-2 border-transparent focus:border-emerald-500 outline-none transition-all font-bold resize-none text-slate-700 shadow-inner"
+                  placeholder="Công ty TNHH ABC: Thực tập sinh (01/2021 - 06/2021)&#10;Tham gia phát triển dự án..."
+                />
+              </div>
             </div>
             
             <button 

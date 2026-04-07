@@ -83,13 +83,16 @@ export async function POST(request: NextRequest) {
       cvUrl = await uploadToCloudinary(cvFile, "blue_ocean_cvs");
     }
 
-    // Cập nhật Profile
+    // Cập nhật Profile (🔥 ĐÃ THÊM EXPERIENCE VÀ EDUCATION Ở ĐÂY)
     const candidateProfile = await db.candidateProfile.upsert({
       where: { userId: session.user.id },
       update: { 
         address: formData.get('address') as string,
         skills: formData.get('skills') as string,
         bio: formData.get('bio') as string,
+        // 👇 THÊM 2 DÒNG NÀY VÀO UPDATE
+        experience: formData.get('experience') as string,
+        education: formData.get('education') as string,
         ...(cvUrl && { defaultCvUrl: cvUrl }) 
       },
       create: {
@@ -97,11 +100,14 @@ export async function POST(request: NextRequest) {
         address: formData.get('address') as string,
         skills: formData.get('skills') as string,
         bio: formData.get('bio') as string,
+        // 👇 THÊM 2 DÒNG NÀY VÀO CREATE
+        experience: formData.get('experience') as string,
+        education: formData.get('education') as string,
         defaultCvUrl: cvUrl || null,
       },
     });
 
-    // 🔥 GỘP LẠI: Chỉ gọi update User 1 lần duy nhất
+    // Cập nhật bảng User (Avatar và SĐT)
     if (imageUrl || phone) {
       await db.user.update({
         where: { id: session.user.id },
@@ -112,7 +118,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, data: candidateProfile });
+    // Trả về kèm imageUrl để Frontend update phiên làm việc (Session)
+    return NextResponse.json({ 
+      success: true, 
+      data: candidateProfile,
+      imageUrl: imageUrl 
+    });
   } catch (error: any) {
     return NextResponse.json({ error: 'Không thể upload', details: error.message }, { status: 500 });
   }

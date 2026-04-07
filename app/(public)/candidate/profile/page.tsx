@@ -117,14 +117,21 @@ export default function CandidateProfilePage() {
 
   const { profile, applications, recommendedJobs, savedJobs = [] } = data; 
 
+  // 🔥 CẬP NHẬT MỚI: Thêm Education và Experience vào tiêu chí đánh giá
   const completionCriteria = [
+    { label: "Ảnh đại diện", isDone: !!liveProfile.avatar },
     { label: "Địa chỉ liên hệ", isDone: !!liveProfile.address },
     { label: "Kỹ năng chuyên môn", isDone: !!liveProfile.skills },
-    { label: "Giới thiệu bản thân", isDone: !!liveProfile.bio },
+    { label: "Kinh nghiệm làm việc", isDone: !!profile?.experience }, // Dữ liệu từ DB
+    { label: "Học vấn", isDone: !!profile?.education },           // Dữ liệu từ DB
     { label: "Hồ sơ CV (PDF)", isDone: !!profile?.defaultCvUrl },
-    { label: "Ảnh đại diện", isDone: !!liveProfile.avatar },
   ];
-  const profileCompletion = completionCriteria.filter(c => c.isDone).length * 20;
+
+  // Vì giờ có 6 tiêu chí, nên mỗi tiêu chí hoàn thành sẽ được: 100 / 6 = 16.66%
+  // Dùng Math.round để làm tròn thành số nguyên đẹp (VD: 17%, 33%, 50%, 67%, 83%, 100%)
+  const profileCompletion = Math.round(
+    (completionCriteria.filter(c => c.isDone).length / completionCriteria.length) * 100
+  );
 
   return (
     <main className="max-w-[1600px] mx-auto pb-20 px-6">

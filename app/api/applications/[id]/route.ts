@@ -38,12 +38,10 @@ export async function GET(
       where: { id },
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
+          // Bỏ 'select' đi, thay bằng 'include'
+          include: {
+            candidateProfile: true // ⚠️ LƯU Ý: Tên bảng trong Prisma Schema thường được số nhiều nếu sếp không đổi tên (xem chú ý bên dưới)
+          }
         },
         job: {
           select: {

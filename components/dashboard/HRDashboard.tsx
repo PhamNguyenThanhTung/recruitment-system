@@ -67,11 +67,19 @@ export function HRDashboard() {
     );
   }
 
-  const barData = data.applicationsByJob.map((j) => ({
-    name: j.jobTitle.length > 24 ? `${j.jobTitle.slice(0, 22)}…` : j.jobTitle,
-    fullTitle: j.jobTitle,
-    applicants: j.count,
-  }));
+  // 🔥 FIX BẢNG XẾP HẠNG: Lọc Top 7 Job Hot Nhất
+  const barData = [...data.applicationsByJob]
+    // 1. Sắp xếp giảm dần theo số lượng ứng viên
+    .sort((a, b) => b.count - a.count)
+    // 2. Chỉ lấy tối đa 7 Job đầu tiên (bỏ qua những Job có 0 người nộp nếu cần)
+    .slice(0, 7)
+    // 3. Format lại data cho biểu đồ
+    .map((j) => ({
+      // Rút gọn chữ cho đỡ đè nhau trên mobile (cắt còn 15 ký tự)
+      name: j.jobTitle.length > 15 ? `${j.jobTitle.slice(0, 15)}…` : j.jobTitle,
+      fullTitle: j.jobTitle,
+      applicants: j.count,
+    }));
 
   const lineData = data.applicationsByMonth.map((m) => ({
     name: m.label,

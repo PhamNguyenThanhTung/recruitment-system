@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 
+// Sửa lại Interface khớp với DB Schema của sếp
 interface Application {
   id: string;
   jobId: string;
@@ -15,6 +16,13 @@ interface Application {
     name: string;
     email: string;
     phone?: string;
+    // THÊM candidateProfile
+    candidateProfile?: {
+      skills: string | null; // Sếp đang lưu string
+      bio: string | null;
+      education: any | null; // Sếp đang lưu jsonb
+      experience: any | null; // Sếp đang lưu jsonb
+    } | null;
   };
   job: {
     id: string;
@@ -26,7 +34,6 @@ interface Application {
 
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  // Unwrap params in Next.js 15+
   const resolvedParams = use(params);
   const applicationId = resolvedParams.id;
 
@@ -37,7 +44,8 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // ===== Fetch Application Details =====
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
   useEffect(() => {
     const fetchApplication = async () => {
       try {
@@ -59,7 +67,6 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     fetchApplication();
   }, [applicationId]);
 
-  // ===== Xử lý Cập nhật Trạng thái =====
   const handleStatusChange = async () => {
     if (!selectedStatus || selectedStatus === application?.status) {
       setShowConfirmModal(false);
@@ -89,25 +96,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
-  // ✅ PHẢI KHỚP TỪNG CHỮ CÁI VỚI PRISMA ENUM
-const statusOptions = [
-  { value: 'PENDING', label: 'Chờ xử lý' },
-  { value: 'REVIEWING', label: 'Đang xem xét' }, // 👈 Đổi REVIEWED thành REVIEWING
-  { value: 'INTERVIEWING', label: 'Phỏng vấn' }, // 👈 Đổi INTERVIEW thành INTERVIEWING
-  { value: 'OFFERED', label: 'Mời làm việc' },   // 👈 Đổi ACCEPTED thành OFFERED
-  { value: 'REJECTED', label: 'Bị từ chối' },
-];
-const getStatusColor = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING': return 'bg-tertiary-fixed text-on-tertiary-fixed-variant';
-    case 'REVIEWING': return 'bg-surface-container-high text-on-surface-variant';
-    case 'INTERVIEWING': return 'bg-primary-fixed text-primary';
-    case 'OFFERED': return 'bg-secondary-fixed text-on-secondary-container';
-    case 'REJECTED': return 'bg-error-container text-on-error-container';
-    default: return 'bg-surface-variant text-on-surface-variant';
-  }
-};
-  // UI Trạng thái Loading / Lỗi
+  const statusOptions = [
+    { value: 'PENDING', label: 'Chờ xử lý' },
+    { value: 'REVIEWING', label: 'Đang xem xét' },
+    { value: 'INTERVIEWING', label: 'Phỏng vấn' },
+    { value: 'OFFERED', label: 'Mời làm việc' },
+    { value: 'REJECTED', label: 'Bị từ chối' },
+  ];
+  const getStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'bg-tertiary-fixed text-on-tertiary-fixed-variant';
+      case 'REVIEWING': return 'bg-surface-container-high text-on-surface-variant';
+      case 'INTERVIEWING': return 'bg-primary-fixed text-primary';
+      case 'OFFERED': return 'bg-secondary-fixed text-on-secondary-container';
+      case 'REJECTED': return 'bg-error-container text-on-error-container';
+      default: return 'bg-surface-variant text-on-surface-variant';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -131,6 +137,40 @@ const getStatusColor = (status: string) => {
   }
 
   const initialLetter = application.user.name.charAt(0).toUpperCase();
+
+  // Parse JSONB an toàn
+  const parseJsonData = (data: any) => {
+    if (!data) return null;
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch {
+        return data; // Trả về text nguyên gốc nếu parse lỗi
+      }
+    }
+    return data;
+  };
+  // Hàm kích hoạt AI
+  const handleAiMatch = async () => {
+    setIsAiLoading(true);
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/ai-match`, {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (result.success) {
+        setAiResult(result.data);
+      } else {
+        alert(result.error || "Lỗi phân tích AI");
+      }
+    } catch (err) {
+      alert("Lỗi kết nối Server");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+  const experienceData = parseJsonData(application.user.candidateProfile?.experience);
+  const educationData = parseJsonData(application.user.candidateProfile?.education);
 
   return (
     <>
@@ -171,9 +211,6 @@ const getStatusColor = (status: string) => {
           
           {/* Action Bar */}
           <div className="flex flex-wrap gap-3">
-            <a href={`mailto:${application.user.email}`} className="bg-surface-container-low text-primary px-6 py-3 rounded-xl font-bold font-headline text-sm hover:bg-primary-fixed transition-all flex items-center gap-2">
-              <span className="material-symbols-outlined text-lg">mail</span> Gửi Email
-            </a>
             <a href={application.cvFileUrl} target="_blank" rel="noopener noreferrer" className="bg-primary text-on-primary px-6 py-3 rounded-xl font-bold font-headline text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
               <span className="material-symbols-outlined text-lg">description</span> Xem CV gốc
             </a>
@@ -213,24 +250,157 @@ const getStatusColor = (status: string) => {
             </div>
           </div>
 
-          {/* Dữ liệu CV (UI Trình diễn cho thiết kế của bạn) */}
-          <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10 opacity-70">
+          {/* ================= DỮ LIỆU TỪ DB THAY THẾ AI ================= */}
+          <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black font-headline text-on-surface">Kinh nghiệm & Kỹ năng</h2>
-              <span className="text-xs font-bold text-outline bg-surface-container-high px-3 py-1 rounded-lg">Phân tích từ CV PDF</span>
+              <h2 className="text-xl font-black font-headline text-on-surface">Hồ sơ ứng viên (Profile)</h2>
+              <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg">Hệ thống</span>
             </div>
-            <div className="p-8 border-2 border-dashed border-outline-variant/30 rounded-2xl text-center">
-              <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">auto_awesome</span>
-              <h3 className="font-bold text-on-surface mb-1">Tính năng phân tích CV AI đang phát triển</h3>
-              <p className="text-sm text-on-surface-variant">Vui lòng bấm nút "Xem CV gốc" ở phía trên để đọc chi tiết hồ sơ của ứng viên.</p>
+          
+          
+        {/* ================= KHU VỰC AI MATCHING ================= */}
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl p-8 shadow-[0px_10px_40px_rgba(0,0,0,0.03)] border border-indigo-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-600">auto_awesome</span>
+                <h2 className="text-xl font-black font-headline text-indigo-900">AI Phân tích mức độ phù hợp</h2>
+              </div>
+              {!aiResult && (
+                <button 
+                  onClick={handleAiMatch} 
+                  disabled={isAiLoading}
+                  className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isAiLoading ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : "Bắt đầu phân tích"}
+                </button>
+              )}
             </div>
+
+            {/* Hiển thị kết quả AI */}
+            {aiResult && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex items-center gap-6 bg-white p-6 rounded-2xl shadow-sm border border-indigo-50">
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path className="text-slate-100" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      <path className={`${aiResult.score > 70 ? 'text-emerald-500' : aiResult.score > 40 ? 'text-amber-500' : 'text-rose-500'}`} strokeDasharray={`${aiResult.score}, 100`} strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div className="absolute text-2xl font-black text-indigo-900">{aiResult.score}%</div>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-indigo-900 text-lg mb-1">Kết luận từ AI:</h3>
+                    <p className="text-sm text-indigo-700/80 leading-relaxed">{aiResult.summary}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                    <h4 className="text-xs font-black uppercase text-emerald-600 mb-2 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">thumb_up</span> Điểm mạnh</h4>
+                    <ul className="space-y-1">
+                      {aiResult.pros.map((pro: string, i: number) => (
+                        <li key={i} className="text-sm text-emerald-800 flex items-start gap-2 before:content-['•'] before:text-emerald-400">{pro}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-rose-50/50 p-4 rounded-xl border border-rose-100">
+                    <h4 className="text-xs font-black uppercase text-rose-600 mb-2 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">warning</span> Cần lưu ý</h4>
+                    <ul className="space-y-1">
+                      {aiResult.cons.map((con: string, i: number) => (
+                        <li key={i} className="text-sm text-rose-800 flex items-start gap-2 before:content-['•'] before:text-rose-400">{con}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+            {application.user.candidateProfile ? (
+              <div className="space-y-8">
+                
+                {/* Giới thiệu (Bio) */}
+                {application.user.candidateProfile.bio && (
+                  <div>
+                    <h3 className="text-xs font-bold text-outline uppercase tracking-wider mb-3">Giới thiệu bản thân</h3>
+                    <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line bg-surface-container-low p-4 rounded-xl">
+                      {application.user.candidateProfile.bio}
+                    </p>
+                  </div>
+                )}
+
+                {/* Kỹ năng */}
+                <div>
+                  <h3 className="text-xs font-bold text-outline uppercase tracking-wider mb-3">Kỹ năng</h3>
+                  {application.user.candidateProfile.skills ? (
+                    <div className="flex flex-wrap gap-2">
+                      {application.user.candidateProfile.skills.split(',').map((skill, idx) => (
+                        <span key={idx} className="bg-surface-container-low text-on-surface font-semibold px-4 py-1.5 rounded-xl text-sm border border-outline-variant/20">
+                          {skill.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-on-surface-variant italic">Chưa cập nhật kỹ năng.</p>
+                  )}
+                </div>
+
+                <hr className="border-outline-variant/10" />
+
+                {/* Kinh nghiệm */}
+                <div>
+                  <h3 className="text-xs font-bold text-outline uppercase tracking-wider mb-3">Kinh nghiệm làm việc</h3>
+                  {experienceData ? (
+                    <div className="space-y-3">
+                       {/* Nếu là mảng JSON */}
+                      {Array.isArray(experienceData) ? experienceData.map((exp: any, i: number) => (
+                        <div key={i} className="bg-surface-container-low p-4 rounded-xl">
+                          <p className="font-bold text-on-surface">{exp.title || 'Vị trí công việc'}</p>
+                          <p className="text-xs text-primary font-medium mb-2">{exp.company || 'Tên công ty'} • {exp.duration || ''}</p>
+                          <p className="text-sm text-on-surface-variant">{exp.description || ''}</p>
+                        </div>
+                      )) : (
+                        /* Nếu là Object hoặc text JSON thường */
+                        <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-body">{JSON.stringify(experienceData, null, 2)}</pre>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-on-surface-variant italic">Chưa cập nhật kinh nghiệm.</p>
+                  )}
+                </div>
+
+                {/* Học vấn */}
+                <div>
+                  <h3 className="text-xs font-bold text-outline uppercase tracking-wider mb-3">Học vấn</h3>
+                  {educationData ? (
+                     <div className="space-y-3">
+                     {Array.isArray(educationData) ? educationData.map((edu: any, i: number) => (
+                       <div key={i} className="bg-surface-container-low p-4 rounded-xl">
+                         <p className="font-bold text-on-surface">{edu.school || 'Trường học'}</p>
+                         <p className="text-xs text-primary font-medium mb-2">{edu.degree || 'Bằng cấp'} • {edu.year || ''}</p>
+                       </div>
+                     )) : (
+                       <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-body">{JSON.stringify(educationData, null, 2)}</pre>
+                     )}
+                   </div>
+                  ) : (
+                    <p className="text-sm text-on-surface-variant italic">Chưa cập nhật học vấn.</p>
+                  )}
+                </div>
+
+              </div>
+            ) : (
+              <div className="p-8 border-2 border-dashed border-outline-variant/30 rounded-2xl text-center">
+                <span className="material-symbols-outlined text-4xl text-outline-variant mb-2">person_off</span>
+                <h3 className="font-bold text-on-surface mb-1">Ứng viên chưa tạo Profile</h3>
+                <p className="text-sm text-on-surface-variant">Vui lòng tải CV gốc về để xem chi tiết thông tin.</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* RIGHT SIDEBAR (4 cols) */}
         <div className="lg:col-span-4 space-y-8">
           
-          {/* CARD: CẬP NHẬT TRẠNG THÁI (STATUS UPDATER) */}
+          {/* CARD: CẬP NHẬT TRẠNG THÁI */}
           <div className="bg-gradient-to-br from-primary to-primary-container rounded-3xl p-8 text-on-primary shadow-xl shadow-primary/20">
             <h2 className="text-xl font-black font-headline mb-6">Quản lý Trạng thái</h2>
             
@@ -285,7 +455,6 @@ const getStatusColor = (status: string) => {
         </div>
       </div>
 
-      {/* Confirm Modal (Giữ nguyên component UI của bạn) */}
       <ConfirmModal
         isOpen={showConfirmModal}
         title="Xác nhận thay đổi"

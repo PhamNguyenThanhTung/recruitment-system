@@ -22,18 +22,21 @@ type SendStatusUpdateEmailParams = {
 const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+// ==========================================
+// HÀM 1: GỬI MAIL KHI CÓ ỨNG VIÊN MỚI
+// ==========================================
 export async function sendNewApplicationNotificationEmail(
   params: SendNewApplicationEmailParams
 ) {
   if (!resend) {
-    console.warn('RESEND_API_KEY is missing. Skip sending notification email.');
+    console.warn('❌ LỖI: Không tìm thấy RESEND_API_KEY trong file .env');
     return;
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'Recruitment System <onboarding@resend.dev>';
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from,
       to: params.to,
       subject: `Bạn có ứng viên mới cho vị trí ${params.jobTitle}`,
@@ -44,21 +47,31 @@ export async function sendNewApplicationNotificationEmail(
         applicationUrl: params.applicationUrl,
       }),
     });
+
+    if (error) {
+      console.error('❌ LỖI TỪ API RESEND (Ứng viên mới):', error);
+      return;
+    }
+
+    console.log('✅ GỬI EMAIL (Ứng viên mới) THÀNH CÔNG! ID:', data?.id);
   } catch (error) {
-    console.error('❌ Error sending new application notification email:', error);
+    console.error('❌ LỖI MẠNG/CODE KHI GỬI EMAIL (Ứng viên mới):', error);
   }
 }
 
+// ==========================================
+// HÀM 2: GỬI MAIL KHI CẬP NHẬT TRẠNG THÁI
+// ==========================================
 export async function sendStatusUpdateEmail(params: SendStatusUpdateEmailParams) {
   if (!resend) {
-    console.warn('RESEND_API_KEY is missing. Skip sending status update email.');
+    console.warn('❌ LỖI: Không tìm thấy RESEND_API_KEY trong file .env');
     return;
   }
 
   const from = process.env.RESEND_FROM_EMAIL || 'Recruitment System <onboarding@resend.dev>';
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from,
       to: params.to,
       subject: `Cập nhật trạng thái ứng tuyển cho vị trí ${params.jobTitle}`,
@@ -69,7 +82,14 @@ export async function sendStatusUpdateEmail(params: SendStatusUpdateEmailParams)
         companyName: params.companyName,
       }),
     });
-} catch (error) {
-    console.error('❌ Error sending status update email:', error);
+
+    if (error) {
+      console.error('❌ LỖI TỪ API RESEND (Cập nhật trạng thái):', error);
+      return;
+    }
+
+    console.log('✅ GỬI EMAIL (Cập nhật trạng thái) THÀNH CÔNG! ID:', data?.id);
+  } catch (error) {
+    console.error('❌ LỖI MẠNG/CODE KHI GỬI EMAIL (Cập nhật trạng thái):', error);
   }
 }

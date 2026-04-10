@@ -3,27 +3,26 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { JobStatus } from "@prisma/client";
 
-// app/api/admin/reports/[jobID]/route.ts
-
 export async function DELETE(
-  req: Request, 
-  { params }: { params: Promise<{ jobID: string }> } // 🔥 Đổi d thành D
+  req: Request,
+  { params }: { params: Promise<{ jobId: string }> } // ✅ Phải khớp với tên thư mục [jobId]
 ) {
   try {
-    const { jobID } = await params; // 🔥 Đổi d thành D
-    
-    // Lưu ý: Trong db.report.deleteMany thì 'jobId' là tên cột trong Database, sếp giữ nguyên theo Schema
+    const { jobId } = await params; // ✅ Lấy đúng tên biến từ params
+
+    // Database column vẫn là 'jobId' theo schema Prisma, giữ nguyên
     await db.report.deleteMany({
-      where: { jobId: jobID } 
+      where: { jobId: jobId } // ✅ Sử dụng biến jobId đã lấy
     });
 
     await db.job.update({
-      where: { id: jobID },
+      where: { id: jobId },
       data: { status: "OPEN" }
     });
 
     return new NextResponse("Success", { status: 200 });
   } catch (error) {
-    return new NextResponse("Error", { status: 500 });
+    console.error(error); // Nên log lỗi để debug
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

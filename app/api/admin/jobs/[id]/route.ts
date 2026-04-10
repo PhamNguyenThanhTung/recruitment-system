@@ -3,15 +3,20 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { JobStatus } from "@prisma/client";
 
-// Dùng PATCH để Duyệt tin (Đổi PENDING -> OPEN)
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+  req: Request, 
+  { params }: { params: Promise<{ id: string }> } 
+) {
   try {
     const session = await auth();
     if (session?.user?.role !== "ADMIN") return new NextResponse("Unauthorized", { status: 403 });
 
+    // 🔥 QUAN TRỌNG: Phải await params trước khi dùng
+    const { id } = await params; 
     const { status } = await req.json();
+
     const job = await db.job.update({
-      where: { id: params.id },
+      where: { id: id }, // Dùng id đã await
       data: { status }
     });
     return NextResponse.json(job);

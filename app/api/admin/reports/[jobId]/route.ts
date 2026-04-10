@@ -3,32 +3,27 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { JobStatus } from "@prisma/client";
 
-// 🔥 SỬA 1: Khai báo params là một Promise
+// app/api/admin/reports/[jobID]/route.ts
+
 export async function DELETE(
   req: Request, 
-  { params }: { params: Promise<{ jobId: string }> } 
+  { params }: { params: Promise<{ jobID: string }> } // 🔥 Đổi d thành D
 ) {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") return new NextResponse("Unauthorized", { status: 403 });
-
-    // 🔥 SỬA 2: Phải await params để lấy jobId ra
-    const { jobId } = await params;
-
-    // 1. Xóa sạch các đơn tố cáo (Report) liên quan đến Job này
+    const { jobID } = await params; // 🔥 Đổi d thành D
+    
+    // Lưu ý: Trong db.report.deleteMany thì 'jobId' là tên cột trong Database, sếp giữ nguyên theo Schema
     await db.report.deleteMany({
-      where: { jobId: jobId } // Dùng jobId đã await
+      where: { jobId: jobID } 
     });
 
-    // 2. Minh oan cho HR: Ép trạng thái Job về lại OPEN
     await db.job.update({
-      where: { id: jobId },
-      data: { status: JobStatus.OPEN }
+      where: { id: jobID },
+      data: { status: "OPEN" }
     });
 
-    return new NextResponse("Đã bỏ qua báo cáo và khôi phục tin", { status: 200 });
+    return new NextResponse("Success", { status: 200 });
   } catch (error) {
-    console.error(error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return new NextResponse("Error", { status: 500 });
   }
 }

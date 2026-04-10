@@ -25,15 +25,24 @@ export async function PATCH(
   }
 }
 
-// Dùng DELETE để Xóa vĩnh viễn tin rác
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+// 2. Sửa hàm DELETE (Cái đang gây lỗi build trên Vercel của sếp)
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> } // 🔥 Bắt buộc là Promise
+) {
   try {
     const session = await auth();
     if (session?.user?.role !== "ADMIN") return new NextResponse("Unauthorized", { status: 403 });
 
-    await db.job.delete({ where: { id: params.id } });
+    const { id } = await params; // 🔥 Phải await để lấy id
+
+    await db.job.delete({
+      where: { id: id }
+    });
+
     return new NextResponse("Deleted", { status: 200 });
   } catch (error) {
+    console.error("[JOB_DELETE_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

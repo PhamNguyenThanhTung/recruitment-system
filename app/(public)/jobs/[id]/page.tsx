@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { JobStatus } from "@prisma/client";
 import ApplyModal from "@/components/jobs/ApplyModal";
+import ReportButton from "@/components/jobs/ReportButton";
 
 export default async function JobDetailPage({
   params,
@@ -179,6 +180,10 @@ export default async function JobDetailPage({
                   <span className="font-bold text-sm text-right line-clamp-3">{job.location}</span>
                 </div>
               </div>
+            </div>
+            {/* 🔥 GẮN NÚT REPORT VÀO ĐÂY (Dưới cùng cột phải) */}
+            <div className="flex justify-center pt-2">
+              <ReportButton jobId={job.id} />
             </div>
           </div>
         </div>

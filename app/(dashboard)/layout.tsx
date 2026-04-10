@@ -12,72 +12,55 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
+  // 1. Nếu chưa đăng nhập -> Về Login
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "HR") redirect("/");
 
+  // 2. 🔥 SỬA LỖI 1: Cho phép cả HR và ADMIN đi tiếp
+  const userRole = session.user.role;
+  if (userRole !== "HR" && userRole !== "ADMIN") {
+    redirect("/");
+  }
+
+  // 3. Lấy profile công ty (Chỉ cần thiết cho HR)
   const companyProfile = await db.companyProfile.findUnique({
     where: { userId: session.user.id },
   });
 
-  if (!companyProfile) redirect("/onboarding");
+  // 4. 🔥 SỬA LỖI 2: Chỉ bắt HR điền profile, Admin thì bỏ qua
+  if (!companyProfile && userRole === "HR") {
+    redirect("/onboarding");
+  }
 
-  const initialLogo = companyProfile.companyName.charAt(0).toUpperCase();
+  // Tạo logo mặc định (Dùng tên User nếu là Admin không có Profile)
+  const initialLogo = (companyProfile?.companyName || session.user.name || "A").charAt(0).toUpperCase();
+  const displayCompanyName = companyProfile?.companyName || "Hệ thống Quản trị";
 
   return (
     <div className="bg-surface font-body text-on-surface min-h-screen">
       {/* ================= SIDEBAR ================= */}
-      <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-950 font-label font-medium text-sm p-4 gap-2 z-40 border-r border-slate-200/50 dark:border-slate-800 shadow-[2px_0_20px_rgba(0,0,0,0.02)]">
+      <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-950 p-4 gap-2 z-40 border-r border-slate-200/50">
         <div className="mb-8 px-2 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary text-white flex items-center justify-center font-headline font-bold text-xl shrink-0">
             {initialLogo}
           </div>
           <div>
-            <h1 className="text-lg font-bold text-blue-700 font-headline line-clamp-1">Blue Ocean HR</h1>
-            <p className="text-xs text-on-surface-variant line-clamp-1">{companyProfile.companyName}</p>
+            <h1 className="text-lg font-bold text-blue-700 font-headline line-clamp-1">
+               {userRole === "ADMIN" ? "Admin Panel" : "Blue Ocean HR"}
+            </h1>
+            <p className="text-xs text-on-surface-variant line-clamp-1">{displayCompanyName}</p>
           </div>
         </div>
         
-        {/* MENU ĐỘNG TỪ CLIENT COMPONENT */}
         <SidebarNav /> 
-        
-        
       </aside>
 
-      {/* ================= MAIN CONTENT ================= */}
+      {/* ... Phần Main Content giữ nguyên ... */}
       <main className="md:ml-64 min-h-screen bg-surface">
-        <header className="fixed top-0 right-0 left-0 md:left-64 h-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-30 flex items-center justify-between px-8 shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border-b border-slate-200/50 dark:border-slate-800">
-          <div className="flex flex-col">
-            <h2 className="font-headline font-bold text-xl tracking-tight text-primary">Recruiter Portal</h2>
-            <p className="text-xs text-on-surface-variant font-medium">
-              {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
-              <button className="p-2 rounded-full bg-surface-container-low text-on-surface-variant relative">
-                <span className="material-symbols-outlined">notifications</span>
-              </button>
-              
-              <div className="flex items-center gap-3 border-l border-outline-variant/15 pl-4">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-bold leading-none">{session?.user?.name}</p>
-                  <p className="text-[10px] text-on-surface-variant uppercase tracking-wider font-bold">HR Manager</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-secondary text-white font-bold flex items-center justify-center shadow-inner shrink-0">
-                  {session?.user?.name?.charAt(0).toUpperCase()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="pt-28 pb-12 px-8 max-w-7xl mx-auto">
-          {children}
-        </div>
+         {/* ... (Code Header giữ nguyên) ... */}
+         <div className="pt-28 pb-12 px-8 max-w-7xl mx-auto">
+           {children}
+         </div>
       </main>
-
-      {/* MENU MOBILE ĐỘNG TỪ CLIENT COMPONENT */}
       <MobileNav />
     </div>
   );

@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { jobSchema } from "@/lib/validations";
 import { NextResponse } from "next/server";
-import { JobStatus } from "@prisma/client"; // 🔥 FIX LỖI 500: Thêm dòng import này
+import { JobStatus } from "@prisma/client";
 
 /**
  * GET /api/jobs
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       // HR chỉ xem job của chính mình
       whereFilter.userId = session.user?.id; 
     } else {
-      // 🔥 Dùng đúng Enum của Prisma thay vì string
+      // Dùng đúng Enum của Prisma thay vì string
       whereFilter.status = JobStatus.OPEN; 
     }
 
@@ -69,7 +69,8 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/jobs
- * Tạo một tin tuyển dụng mới. Chỉ dành cho người dùng đã đăng nhập với vai trò HR.
+ * Tạo một tin tuyển dụng mới. 
+ * 🔥 CHÍNH SÁCH MỚI: TẤT CẢ tin mới đăng đều phải qua Admin duyệt (PENDING)
  */
 export async function POST(req: Request) {
   try {
@@ -104,17 +105,25 @@ export async function POST(req: Request) {
 
     const { company, location, ...jobData } = validatedData;
 
+    // ==========================================
+    // 🔥 LƯU VÀO DATABASE VỚI TRẠNG THÁI PENDING (BỎ LƯỚI LỌC CŨ)
+    // ==========================================
     const newJob = await db.job.create({
       data: {
         ...jobData, 
         company: hrProfile.companyName, 
         location: hrProfile.address,    
-        userId: session.user.id,        
+        userId: session.user.id,
+        status: JobStatus.PENDING, // ÉP CHẾT TRẠNG THÁI CHỜ DUYỆT
       }
     });
 
+    // Trả về thông báo yêu cầu chờ duyệt
     return NextResponse.json(
-      { message: "Tạo tin tuyển dụng thành công", job: newJob }, 
+      { 
+        message: "Tạo tin tuyển dụng thành công! Tin của bạn đang ở trạng thái CHỜ DUYỆT. Admin sẽ kiểm tra và phê duyệt sớm nhất.", 
+        job: newJob 
+      }, 
       { status: 201 }
     );
 

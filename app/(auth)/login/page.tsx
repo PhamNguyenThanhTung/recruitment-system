@@ -239,7 +239,7 @@ export default function LoginPage() {
             <span className="text-secondary-fixed">Tương lai Tuyển dụng.</span>
           </h3>
           <p className="text-lg text-white/80 leading-relaxed max-w-md font-medium">
-            Hàng nghìn Nhà tuyển dụng và Ứng viên hàng đầu đang sử dụng RecruitSync để kết nối và xây dựng đội ngũ vững mạnh.
+            Hàng nghìn Nhà tuyển dụng và Ứng viên hàng đầu đang sử dụng Shisha để kết nối và xây dựng đội ngũ vững mạnh.
           </p>
           
           {/* Các vòng tròn trang trí */}

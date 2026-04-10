@@ -1,12 +1,8 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { uploadToCloudinary } from '@/lib/cloudinary'; // 🔥 Import hàm upload của sếp
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * GET /api/profile/company
- * Lấy thông tin công ty của HR hiện tại
- */
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -26,10 +22,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * PUT /api/profile/company
- * Cập nhật hoặc tạo mới hồ sơ công ty (Hỗ trợ FormData & Upload Logo)
- */
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -37,7 +29,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 🔥 1. ĐỌC DỮ LIỆU TỪ FORMDATA (Thay vì req.json() như cũ)
     const formData = await request.formData();
     
     const companyName = formData.get("companyName") as string;
@@ -45,23 +36,20 @@ export async function PUT(request: NextRequest) {
     const website = formData.get("website") as string;
     const description = formData.get("description") as string;
     
-    // Ép kiểu số cho size và foundedYear
-    const sizeRaw = formData.get("size");
-    const size = sizeRaw ? Number(sizeRaw) : undefined;
+    // 🔥 FIX LỖI Ở ĐÂY: Prisma yêu cầu 'size' là String, nên ta giữ nguyên nó là String
+    const size = formData.get("size") as string || null;
     
+    // Giữ nguyên Number cho foundedYear (năm thành lập thường là Int)
     const foundedYearRaw = formData.get("foundedYear");
-    const foundedYear = foundedYearRaw ? Number(foundedYearRaw) : undefined;
+    const foundedYear = foundedYearRaw ? Number(foundedYearRaw) : null;
 
-    // 🔥 2. XỬ LÝ UPLOAD LOGO (Nếu có)
     const logoFile = formData.get("logo") as File | null;
-    let logoUrl = undefined; // Mặc định là undefined để Prisma không ghi đè nếu không có ảnh mới
+    let logoUrl = undefined; 
 
     if (logoFile && logoFile.size > 0) {
-      // Đẩy ảnh lên thư mục 'company_logos' trên Cloudinary
       logoUrl = await uploadToCloudinary(logoFile, 'company_logos');
     }
 
-    // 3. KIỂM TRA VALIDATION CƠ BẢN
     const existingProfile = await db.companyProfile.findUnique({
       where: { userId: session.user.id },
     });
@@ -75,18 +63,15 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // 🔥 4. CẬP NHẬT DATABASE
-    // Gói dữ liệu lại để update
     const updateData: any = {
       companyName: companyName || existingProfile?.companyName,
       address: address || existingProfile?.address,
       website: website || null,
       description: description || null,
-      size: size || null,
-      foundedYear: foundedYear || null,
+      size: size, // Lưu thẳng String vào DB
+      foundedYear: foundedYear,
     };
 
-    // Chỉ cập nhật logoUrl nếu có ảnh mới upload thành công
     if (logoUrl) {
       updateData.logoUrl = logoUrl;
     }
@@ -100,8 +85,8 @@ export async function PUT(request: NextRequest) {
         address: address,
         website: website || null,
         description: description || null,
-        size: size || null,
-        foundedYear: foundedYear || null,
+        size: size,
+        foundedYear: foundedYear,
         logoUrl: logoUrl || null,
       },
     });
@@ -114,7 +99,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// Giữ lại POST trỏ về PUT cho an toàn (phòng trường hợp Frontend gọi nhầm method)
 export async function POST(request: NextRequest) {
   return PUT(request);
 }

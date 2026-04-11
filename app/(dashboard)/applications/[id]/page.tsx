@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
-
+import { InterviewModal } from '@/components/ui/InterviewModal';
 // Sửa lại Interface khớp với DB Schema của sếp
 interface Application {
   id: string;
@@ -37,6 +37,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const resolvedParams = use(params);
   const applicationId = resolvedParams.id;
 
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [application, setApplication] = useState<Application | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -422,8 +423,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
               </div>
               
+              {/* Sửa lại sự kiện onClick của nút Lưu trạng thái */}
               <button
-                onClick={() => setShowConfirmModal(true)}
+                onClick={() => {
+                  if (selectedStatus === 'INTERVIEWING') {
+                    setShowInterviewModal(true); // Bật form lên lịch nếu chọn Phỏng vấn
+                  } else {
+                    setShowConfirmModal(true);   // Bật modal xác nhận bình thường cho các trạng thái khác
+                  }
+                }}
                 disabled={isUpdating || selectedStatus === application.status}
                 className="w-full py-4 mt-2 bg-white text-primary rounded-xl font-black font-headline hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
               >
@@ -441,7 +449,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <span className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors">Tải PDF xuống máy</span>
                 <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">download</span>
               </a>
-              <button className="w-full flex items-center justify-between p-4 rounded-xl border border-outline-variant/20 hover:bg-surface-container-low hover:border-primary/30 transition-all group">
+              {/* Sửa nút Hành động nhanh -> Lên lịch phỏng vấn */}
+              <button 
+                onClick={() => {
+                  setSelectedStatus('INTERVIEWING'); // Chuyển state select sang Phỏng vấn
+                  setShowInterviewModal(true);       // Mở modal
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-outline-variant/20 hover:bg-surface-container-low hover:border-primary/30 transition-all group"
+              >
                 <span className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors">Lên lịch phỏng vấn</span>
                 <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">event</span>
               </button>
@@ -465,6 +480,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         onConfirm={handleStatusChange}
         onCancel={() => setShowConfirmModal(false)}
       />
+      <InterviewModal 
+        isOpen={showInterviewModal}
+        onClose={() => setShowInterviewModal(false)}
+        applicationId={applicationId}
+        onSuccess={() => {
+          // Khi API tạo lịch thành công, update giao diện
+          setApplication(prev => prev ? { ...prev, status: 'INTERVIEWING' } : null);
+          setSelectedStatus('INTERVIEWING');
+          alert("Đã gửi email mời phỏng vấn thành công!");
+        }}
+/>
     </>
   );
 }

@@ -1,8 +1,7 @@
-import { Resend } from 'resend';
-import { NewApplicationNotificationEmail } from '@/emails/NewApplicationNotificationEmail';
-import StatusUpdateEmail from '@/emails/status-update';
+import nodemailer from 'nodemailer';
 import { ApplicationStatus } from '@prisma/client';
 
+// Giữ nguyên Type cũ để không lỗi code ở các file khác
 type SendNewApplicationEmailParams = {
   to: string;
   hrName?: string | null;
@@ -17,45 +16,51 @@ type SendStatusUpdateEmailParams = {
   jobTitle: string;
   newStatus: ApplicationStatus;
   companyName: string;
-}
+};
 
-const resendApiKey = process.env.RESEND_API_KEY;
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+type SendInterviewInviteParams = {
+  candidateEmail: string;
+  candidateName: string;
+  interviewerEmail: string;
+  interviewerName: string;
+  jobTitle: string;
+  time: Date;
+  location: string;
+  round: string;
+};
+
+// CẤU HÌNH NODEMAILER
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const fromEmail = `"Shisha HR" <${process.env.EMAIL_USER}>`;
 
 // ==========================================
 // HÀM 1: GỬI MAIL KHI CÓ ỨNG VIÊN MỚI
 // ==========================================
-export async function sendNewApplicationNotificationEmail(
-  params: SendNewApplicationEmailParams
-) {
-  if (!resend) {
-    console.warn('❌ LỖI: Không tìm thấy RESEND_API_KEY trong file .env');
-    return;
-  }
-
-  const from = process.env.RESEND_FROM_EMAIL || 'Shisha <onboarding@resend.dev>';
-
+export async function sendNewApplicationNotificationEmail(params: SendNewApplicationEmailParams) {
   try {
-    const { data, error } = await resend.emails.send({
-      from,
+    const info = await transporter.sendMail({
+      from: fromEmail,
       to: params.to,
-      subject: `Bạn có ứng viên mới cho vị trí ${params.jobTitle}`,
-      react: NewApplicationNotificationEmail({
-        hrName: params.hrName,
-        jobTitle: params.jobTitle,
-        candidateName: params.candidateName,
-        applicationUrl: params.applicationUrl,
-      }),
+      subject: `[Shisha] Có ứng viên mới cho vị trí: ${params.jobTitle}`,
+      html: `
+        <div style="font-family: sans-serif; line-height: 1.5;">
+          <h2>Chào ${params.hrName || 'bạn'},</h2>
+          <p>Hệ thống vừa ghi nhận một hồ sơ ứng tuyển mới từ <strong>${params.candidateName || 'một ứng viên'}</strong> cho vị trí <strong>${params.jobTitle}</strong>.</p>
+          <p>Vui lòng đăng nhập vào hệ thống để xem xét hồ sơ:</p>
+          <a href="${params.applicationUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">Xem hồ sơ ngay</a>
+        </div>
+      `,
     });
-
-    if (error) {
-      console.error('❌ LỖI TỪ API RESEND (Ứng viên mới):', error);
-      return;
-    }
-
-    console.log('✅ GỬI EMAIL (Ứng viên mới) THÀNH CÔNG! ID:', data?.id);
+    console.log('✅ Đã gửi mail (Ứng viên mới):', info.messageId);
   } catch (error) {
-    console.error('❌ LỖI MẠNG/CODE KHI GỬI EMAIL (Ứng viên mới):', error);
+    console.error('❌ Lỗi gửi mail (Ứng viên mới):', error);
   }
 }
 
@@ -63,33 +68,67 @@ export async function sendNewApplicationNotificationEmail(
 // HÀM 2: GỬI MAIL KHI CẬP NHẬT TRẠNG THÁI
 // ==========================================
 export async function sendStatusUpdateEmail(params: SendStatusUpdateEmailParams) {
-  if (!resend) {
-    console.warn('❌ LỖI: Không tìm thấy RESEND_API_KEY trong file .env');
-    return;
+  try {
+    const info = await transporter.sendMail({
+      from: fromEmail,
+      to: params.to,
+      subject: `[Shisha] Cập nhật trạng thái hồ sơ: ${params.jobTitle}`,
+      html: `
+        <div style="font-family: sans-serif; line-height: 1.5;">
+          <h2>Chào ${params.candidateName},</h2>
+          <p>Hồ sơ ứng tuyển của bạn cho vị trí <strong>${params.jobTitle}</strong> tại công ty <strong>${params.companyName}</strong> vừa được cập nhật trạng thái mới:</p>
+          <h3 style="color: #28a745;">Trạng thái hiện tại: ${params.newStatus}</h3>
+          <p>Vui lòng đăng nhập vào hệ thống Shisha để biết thêm chi tiết.</p>
+          <br/>
+          <p>Chúc bạn thành công!</p>
+        </div>
+      `,
+    });
+    console.log('✅ Đã gửi mail (Cập nhật trạng thái):', info.messageId);
+  } catch (error) {
+    console.error('❌ Lỗi gửi mail (Cập nhật trạng thái):', error);
   }
+}
 
-  const from = process.env.RESEND_FROM_EMAIL || 'Shisha <onboarding@resend.dev>';
+// ==========================================
+// HÀM 3: GỬI MAIL MỜI PHỎNG VẤN
+// ==========================================
+export async function sendInterviewEmail(params: SendInterviewInviteParams) {
+  const formattedTime = new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(new Date(params.time));
 
   try {
-    const { data, error } = await resend.emails.send({
-      from,
-      to: params.to,
-      subject: `Cập nhật trạng thái ứng tuyển cho vị trí ${params.jobTitle}`,
-      react: StatusUpdateEmail({
-        candidateName: params.candidateName,
-        jobTitle: params.jobTitle,
-        newStatus: params.newStatus,
-        companyName: params.companyName,
-      }),
+    const info = await transporter.sendMail({
+      from: fromEmail,
+      to: [params.candidateEmail, params.interviewerEmail], // Gửi cho ứng viên và người phỏng vấn
+      subject: `[Lịch Phỏng Vấn] Vị trí ${params.jobTitle} - ${params.round}`,
+      html: `
+        <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+          <h2>Xin chào ${params.candidateName},</h2>
+          <p>Chúc mừng bạn đã vượt qua vòng sơ loại hồ sơ. Chúng tôi xin trân trọng mời bạn tham gia buổi phỏng vấn cho vị trí <strong>${params.jobTitle}</strong>.</p>
+          
+          <div style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #cce5ff;">
+            <h3 style="margin-top: 0; color: #004085;">Thông tin buổi phỏng vấn:</h3>
+            <ul style="list-style-type: none; padding-left: 0;">
+              <li style="margin-bottom: 8px;"><strong>Vòng:</strong> ${params.round}</li>
+              <li style="margin-bottom: 8px;"><strong>Thời gian:</strong> <span style="color: #d9534f; font-weight: bold;">${formattedTime}</span></li>
+              <li style="margin-bottom: 8px;"><strong>Địa điểm / Link Online:</strong> <a href="${params.location}" target="_blank">${params.location}</a></li>
+              <li style="margin-bottom: 8px;"><strong>Người phụ trách:</strong> ${params.interviewerName}</li>
+            </ul>
+          </div>
+
+          <p>Vui lòng chuẩn bị sẵn sàng trước 10 phút. Nếu có bất kỳ thay đổi nào, vui lòng phản hồi trực tiếp qua email này.</p>
+          <br/>
+          <p>Trân trọng,</p>
+          <p><strong>Bộ phận Tuyển dụng Shisha</strong></p>
+        </div>
+      `,
     });
-
-    if (error) {
-      console.error('❌ LỖI TỪ API RESEND (Cập nhật trạng thái):', error);
-      return;
-    }
-
-    console.log('✅ GỬI EMAIL (Cập nhật trạng thái) THÀNH CÔNG! ID:', data?.id);
+    console.log('✅ Đã gửi mail (Mời phỏng vấn):', info.messageId);
   } catch (error) {
-    console.error('❌ LỖI MẠNG/CODE KHI GỬI EMAIL (Cập nhật trạng thái):', error);
+    console.error('❌ Lỗi gửi mail (Mời phỏng vấn):', error);
   }
 }

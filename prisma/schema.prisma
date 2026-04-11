@@ -42,9 +42,30 @@ enum JobStatus {
   CLOSED
   PENDING
 }
-
+enum InterviewStatus {
+  SCHEDULED // Đã lên lịch
+  COMPLETED // Đã hoàn thành
+  CANCELED  // Đã hủy
+}
 // ===== MODELS =====
+model Interview {
+  id            String          @id @default(cuid())
+  applicationId String          @unique @map("application_id")
+  // Đổi interviewerId thành Optional (?) và thêm interviewerEmail
+  interviewerId String?         @map("interviewer_id") 
+  interviewerEmail String       @map("interviewer_email") // Lưu email người phỏng vấn
+  time          DateTime
+  location      String
+  round         String
+  status        InterviewStatus @default(SCHEDULED)
+  createdAt     DateTime        @default(now()) @map("created_at")
 
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  // Đổi quan hệ thành Optional
+  interviewer   User?           @relation(fields: [interviewerId], references: [id])
+
+  @@map("interviews")
+}
 // Model User: Đại diện cho người dùng (HR hoặc Candidate) trong hệ thống
 model User {
   id        String   @id @default(cuid())
@@ -68,6 +89,8 @@ model User {
   companyProfile   CompanyProfile?
   candidateProfile CandidateProfile?
   report           Report[]
+  // Thêm vào dưới dòng: report Report[]
+  interviews    Interview[]
 
   @@map("users") // Tên bảng trong cơ sở dữ liệu là 'users'
 }
@@ -160,12 +183,13 @@ model Application {
   // Đổi dòng status cũ thành dòng này:
   status    ApplicationStatus @default(PENDING)
   appliedAt DateTime          @default(now()) @map("applied_at") // Thời điểm nộp đơn
-
+  // Thêm vào dưới dòng: user User @relation(...)
+  interview     Interview?
   // Quan hệ với Job (một job có nhiều application)
   job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
   // Quan hệ với User (một candidate có nhiều application)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   @@map("applications") // Tên bảng trong cơ sở dữ liệu là 'applications'
 }
 

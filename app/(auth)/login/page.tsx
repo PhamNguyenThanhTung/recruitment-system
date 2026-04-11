@@ -72,7 +72,7 @@ export default function LoginPage() {
 
           {/* Tiêu đề & Lời chào */}
           <div className="mb-12">
-            <h1 className="font-headline font-black text-3xl md:text-4xl tracking-tight text-primary">RecruitSync</h1>
+            <h1 className="font-headline font-black text-3xl md:text-4xl tracking-tight text-primary">Shisha</h1>
             <p className="mt-2 text-on-surface-variant font-medium">Nền tảng tuyển dụng thế hệ mới.</p>
           </div>
           

@@ -132,3 +132,41 @@ export async function sendInterviewEmail(params: SendInterviewInviteParams) {
     console.error('❌ Lỗi gửi mail (Mời phỏng vấn):', error);
   }
 }
+// Thêm type này lên đầu file
+type SendApplicationSuccessParams = {
+  candidateEmail: string;
+  candidateName: string;
+  jobTitle: string;
+  companyName: string;
+};
+
+// ==========================================
+// HÀM 4: GỬI MAIL CHO ỨNG VIÊN KHI NỘP CV THÀNH CÔNG
+// ==========================================
+export async function sendApplicationSuccessEmail(params: SendApplicationSuccessParams) {
+  try {
+    const info = await transporter.sendMail({
+      from: fromEmail,
+      to: params.candidateEmail,
+      subject: `[RecruitSync] Nộp đơn thành công vị trí: ${params.jobTitle}`,
+      html: `
+        <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+          <h2>Chào ${params.candidateName},</h2>
+          <p>Chúc mừng bạn! Hồ sơ ứng tuyển của bạn cho vị trí <strong>${params.jobTitle}</strong> tại <strong>${params.companyName}</strong> đã được gửi thành công.</p>
+          
+          <div style="background-color: #f0f8ff; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #cce5ff;">
+            <p style="margin: 0;">Nhà tuyển dụng sẽ sớm xem xét hồ sơ của bạn. Bạn có thể theo dõi tiến trình ứng tuyển trực tiếp tại Dashboard của hệ thống.</p>
+          </div>
+
+          <p>Chúc bạn may mắn và sớm nhận được phản hồi tốt!</p>
+          <br/>
+          <p>Trân trọng,</p>
+          <p><strong>Hệ thống RecruitSync</strong></p>
+        </div>
+      `,
+    });
+    console.log('✅ Đã gửi mail (Báo ứng viên nộp CV thành công):', info.messageId);
+  } catch (error) {
+    console.error('❌ Lỗi gửi mail (Báo ứng viên nộp CV thành công):', error);
+  }
+}

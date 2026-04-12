@@ -2,10 +2,12 @@ import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { fileValidation } from '@/lib/validations';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { sendNewApplicationNotificationEmail } from '@/lib/email';
 import { NextResponse, NextRequest } from 'next/server';
 import { ApplicationStatus } from '@prisma/client';
-
+import { 
+  sendNewApplicationNotificationEmail, 
+  sendApplicationSuccessEmail // 🔥 Thêm hàm này vào
+} from '@/lib/email';
 /**
  * POST /api/applications
  * Endpoint nộp đơn ứng tuyển cho Candidate
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
       'http://localhost:3000';
     const applicationUrl = `${appBaseUrl}/applications/${application.id}`;
 
-    // Fire-and-forget: không block response chính nếu gửi email gặp lỗi.
+    // Fire-and-forget: báo cho HR
     void sendNewApplicationNotificationEmail({
       to: job.user.email,
       hrName: job.user.name,
@@ -141,6 +143,21 @@ export async function POST(request: NextRequest) {
     }).catch((emailError) => {
       console.error('Send new application email error:', emailError);
     });
+
+    // 🔥 THÊM ĐOẠN NÀY: Bắn mail cho Ứng viên báo nộp thành công
+    if (session.user.email) {
+      void sendApplicationSuccessEmail({
+        candidateEmail: session.user.email,
+        candidateName: session.user.name || 'Ứng viên',
+        jobTitle: job.title,
+        companyName: job.company || 'Công ty',
+      }).catch((emailError) => {
+        console.error('Lỗi gửi mail báo ứng viên thành công:', emailError);
+      });
+    }
+
+    // Trả về thành công
+    return NextResponse.json(application, { status: 201 });
 
     return NextResponse.json(application, { status: 201 });
   } catch (error) {

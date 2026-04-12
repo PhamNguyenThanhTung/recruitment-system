@@ -35,7 +35,7 @@ export default auth((req) => {
   }
 
   // === 3. ADMIN ROUTES (Bảo vệ vùng cấm Admin) ===
-  if (nextUrl.pathname.startsWith('/admin')) {
+  if (nextUrl.pathname.startsWith('/admin/')) {
     if (!session || role !== 'ADMIN') {
       // Không phải Admin mà đòi vào thì đá về trang chủ hoặc login
       return NextResponse.redirect(new URL('/login', req.url));

@@ -19,19 +19,6 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
 
-  // ===== BẢO VỆ TUYẾN =====
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-    if (session?.user?.role !== 'HR') {
-      router.push('/');
-      return;
-    }
-  }, [status, session, router]);
-
   // ===== KÉO DỮ LIỆU CŨ =====
   useEffect(() => {
     const fetchCompanyProfile = async () => {

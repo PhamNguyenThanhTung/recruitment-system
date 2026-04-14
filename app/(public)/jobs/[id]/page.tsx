@@ -159,12 +159,7 @@ export default async function JobDetailPage({
                 </>
                 )}
                 
-                <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center text-xs font-label opacity-70">
-                  <span className="truncate max-w-[150px]">ID: {job.id}</span>
-                  <div className="flex gap-4">
-                    <span className="material-symbols-outlined cursor-pointer hover:opacity-100">share</span>
-                  </div>
-                </div>
+                
               </div>
             </div>
 

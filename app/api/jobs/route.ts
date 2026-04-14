@@ -92,9 +92,19 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     
+    // 🔥 FIX LỖI ZOD Ở ĐÂY: "Rửa" dữ liệu trước khi parse
+    const cleanBody = {
+      ...body,
+      // Nếu requirements gửi lên bị null/undefined, thì ép nó thành chuỗi rỗng ""
+      requirements: body.requirements || "", 
+      // Ép status thành chữ in hoa toàn bộ để khớp với Enum của Zod
+      status: body.status ? body.status.toUpperCase() : "PENDING"
+    };
+
     let validatedData;
     try {
-      validatedData = jobSchema.parse(body);
+      // Nhét cái cleanBody vào parse thay vì body gốc
+      validatedData = jobSchema.parse(cleanBody); 
     } catch (error) {
       console.error("❌ Validation error:", error);
       return NextResponse.json(

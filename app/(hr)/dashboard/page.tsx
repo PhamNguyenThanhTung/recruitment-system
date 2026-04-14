@@ -9,7 +9,7 @@ import { JobStatus } from "@prisma/client";
 export default async function DashboardOverviewPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-
+  
   // Lấy 4 Job mới nhất để hiển thị ra bảng
   const recentJobs = await db.job.findMany({
     where: { userId: session.user.id },

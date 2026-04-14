@@ -70,10 +70,22 @@ export default function OnboardingPage() {
 
     try {
       setIsLoading(true);
+
+      // 🔥 CHUYỂN JSON THÀNH FORMDATA CHUẨN 🔥
+      const dataToSend = new FormData();
+      dataToSend.append('companyName', formData.companyName);
+      dataToSend.append('address', formData.address);
+      dataToSend.append('website', formData.website);
+      dataToSend.append('description', formData.description);
+
+      // Nếu sếp có làm nút chọn file Logo sau này, thì append thêm file vào đây
+      // dataToSend.append('logo', logoFile);
+
       const response = await fetch('/api/profile/company', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        method: 'POST', // Code sếp gọi POST sẽ chạy vào hàm PUT ở Backend
+        // ❌ TUYỆT ĐỐI KHÔNG GHI headers: {'Content-Type': '...'} KHI DÙNG FORMDATA
+        // Trình duyệt sẽ tự động thêm header 'multipart/form-data' chuẩn nhất
+        body: dataToSend, 
       });
 
       if (!response.ok) {
@@ -85,7 +97,6 @@ export default function OnboardingPage() {
 
       toast.success('Thiết lập hồ sơ thành công!');
       
-      // Ép tải lại toàn bộ app để Layout bốc được Avatar công ty mới
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 1000);
@@ -94,7 +105,6 @@ export default function OnboardingPage() {
       setIsLoading(false);
     }
   };
-
   // MÀN HÌNH LOADING
   if (isFetching || status === 'loading') {
     return (

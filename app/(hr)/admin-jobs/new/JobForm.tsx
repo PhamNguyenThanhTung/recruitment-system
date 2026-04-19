@@ -112,7 +112,35 @@ export default function JobForm() {
                       <input name="location" value={previewLocation} onChange={(e) => setPreviewLocation(e.target.value)} className="w-full bg-surface-container-low border-0 rounded-lg py-3 px-4 outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                   </div>
-
+                  {/* Khối nhập Mức lương (Thêm mới vào đây) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase">Lương tối thiểu ($)</label>
+                      <input 
+                        name="salaryMin" 
+                        type="number"
+                        onChange={(e) => setPreviewSalary(prev => {
+                          const parts = prev.split(' - ');
+                          return `$${e.target.value} - ${parts[1] || '$...'}`;
+                        })}
+                        className="w-full bg-surface-container-low border-0 rounded-lg py-3 px-4 outline-none focus:ring-2 focus:ring-primary" 
+                        placeholder="VD: 500" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase">Lương tối đa ($)</label>
+                      <input 
+                        name="salaryMax" 
+                        type="number"
+                        onChange={(e) => setPreviewSalary(prev => {
+                          const parts = prev.split(' - ');
+                          return `${parts[0] || '$...'} - $${e.target.value}`;
+                        })}
+                        className="w-full bg-surface-container-low border-0 rounded-lg py-3 px-4 outline-none focus:ring-2 focus:ring-primary" 
+                        placeholder="VD: 1500" 
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-on-surface-variant uppercase">Logo Công Ty</label>
                     <CldUploadWidget 

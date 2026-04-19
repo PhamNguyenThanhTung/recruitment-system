@@ -158,8 +158,7 @@ export default async function JobDetailPage({
                   />
                 </>
                 )}
-                
-                
+                              
               </div>
             </div>
 

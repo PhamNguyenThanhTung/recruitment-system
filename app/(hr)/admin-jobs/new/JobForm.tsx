@@ -178,19 +178,7 @@ export default function JobForm() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Hạn nộp hồ sơ *</label>
-              <div className="relative">
-                <input 
-                  name="deadline"
-                  required
-                  disabled={isLoading}
-                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
-                  type="date" 
-                />
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">calendar_today</span>
-              </div>
-            </div>
+            
             
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Trạng thái ban đầu</label>

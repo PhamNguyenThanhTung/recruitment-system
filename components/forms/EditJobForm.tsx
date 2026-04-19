@@ -10,21 +10,14 @@ export default function EditJobForm({ job }: { job: any }) {
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Format lại ngày tháng chuẩn YYYY-MM-DD để hiển thị vào input type="date"
   const formattedDeadline = job.deadline 
     ? new Date(job.deadline).toISOString().split('T')[0] 
     : "";
 
-  // Tách chuỗi lương cũ (VD: "$500 - $1500") ra thành min và max để fill vào form
   let defaultMin = "";
   let defaultMax = "";
-  if (job.salary) {
-    const numbers = job.salary.match(/\d+/g);
-    if (numbers) {
-      defaultMin = numbers[0] || "";
-      defaultMax = numbers[1] || "";
-    }
-  }
+  if (job.minSalary) defaultMin = job.minSalary.toString();
+  if (job.maxSalary) defaultMax = job.maxSalary.toString();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,25 +26,31 @@ export default function EditJobForm({ job }: { job: any }) {
 
     const formData = new FormData(event.currentTarget);
     
-    // Khởi tạo lại chuỗi lương từ 2 ô input
-    const minSalary = formData.get("salaryMin") as string;
-    const maxSalary = formData.get("salaryMax") as string;
-    const finalSalary = (minSalary && maxSalary) 
-      ? `$${minSalary} - $${maxSalary}` 
-      : (minSalary ? `Từ $${minSalary}` : "Thỏa thuận");
+    const minSalaryStr = formData.get("salaryMin") as string;
+    const maxSalaryStr = formData.get("salaryMax") as string;
+    const finalSalary = (minSalaryStr && maxSalaryStr) 
+      ? `$${minSalaryStr} - $${maxSalaryStr}` 
+      : (minSalaryStr ? `Từ $${minSalaryStr}` : "Thỏa thuận");
+
+    // 🔥 Ép kiểu thành số nguyên cho Database
+    const parsedMinSalary = minSalaryStr ? parseInt(minSalaryStr, 10) : null;
+    const parsedMaxSalary = maxSalaryStr ? parseInt(maxSalaryStr, 10) : null;
 
     const data = {
       title: formData.get("title"),
+      jobType: formData.get("jobType"), // 🔥 Cập nhật JobType
       salary: finalSalary,
+      minSalary: parsedMinSalary, // 🔥 Gửi MinSalary dạng Int
+      maxSalary: parsedMaxSalary, // 🔥 Gửi MaxSalary dạng Int
       status: formData.get("status"),
       description: formData.get("description"),
       requirements: formData.get("requirements"),
-      deadline: formData.get("deadline") || null, // Trả về null nếu không chọn ngày
+      deadline: formData.get("deadline") || null,
     };
 
     try {
       const response = await fetch(`/api/jobs/${job.id}`, {
-        method: "PUT", // Sử dụng đúng PUT theo API của bạn
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
@@ -72,7 +71,6 @@ export default function EditJobForm({ job }: { job: any }) {
     }
   }
 
-  // Chức năng Xóa Job giữ nguyên logic gốc
   async function onDelete() {
     if (!confirm("Bạn có chắc muốn xóa tin này không? Hành động này không thể hoàn tác!")) return;
 
@@ -100,7 +98,7 @@ export default function EditJobForm({ job }: { job: any }) {
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-8">
       
-      {/* ================= HEADER ACTIONS ================= */}
+      {/* HEADER ACTIONS */}
       <div className="col-span-12 flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-4">
         <div>
           <nav className="flex items-center gap-2 text-on-surface-variant mb-2">
@@ -120,17 +118,16 @@ export default function EditJobForm({ job }: { job: any }) {
               Hủy bỏ
             </button>
           </Link>
-          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all active:scale-95 disabled:opacity-70 flex items-center gap-2">
+          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all flex items-center gap-2">
             {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : null}
             Lưu thay đổi
           </button>
         </div>
       </div>
 
-      {/* ================= MAIN FORM COLUMN ================= */}
+      {/* MAIN FORM COLUMN */}
       <div className="col-span-12 lg:col-span-8 space-y-8">
         
-        {/* Section: Thông báo lỗi */}
         {error && (
           <div className="p-4 bg-error-container text-on-error-container rounded-xl text-sm font-bold flex items-center gap-3">
             <span className="material-symbols-outlined">error</span>
@@ -138,7 +135,7 @@ export default function EditJobForm({ job }: { job: any }) {
           </div>
         )}
 
-        {/* Section: Thông tin cơ bản */}
+        {/* Section 1: Thông tin cơ bản */}
         <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
           <div className="flex items-center gap-3 mb-8">
             <span className="material-symbols-outlined text-primary bg-primary-fixed p-2 rounded-lg">work</span>
@@ -169,7 +166,6 @@ export default function EditJobForm({ job }: { job: any }) {
                 />
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">corporate_fare</span>
               </div>
-              <p className="text-xs text-outline mt-1">*Thông tin được lấy từ hồ sơ công ty</p>
             </div>
             
             <div className="space-y-2 border-t md:border-none pt-4 md:pt-0 border-outline-variant/10">
@@ -184,7 +180,28 @@ export default function EditJobForm({ job }: { job: any }) {
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">location_on</span>
               </div>
             </div>
-            
+
+            {/* 🔥 THÊM LOẠI CÔNG VIỆC Ở ĐÂY ĐỂ ĐỒNG BỘ VỚI DB VÀ CREATE FORM */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Loại công việc *</label>
+              <div className="relative">
+                <select 
+                  name="jobType"
+                  defaultValue={job.jobType}
+                  required
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 appearance-none outline-none transition-all"
+                >
+                  <option value="FULL_TIME">Toàn thời gian (Full-time)</option>
+                  <option value="PART_TIME">Bán thời gian (Part-time)</option>
+                  <option value="CONTRACT">Hợp đồng (Contract)</option>
+                  <option value="FREELANCE">Làm tự do (Freelance)</option>
+                  <option value="INTERNSHIP">Thực tập sinh (Internship)</option>
+                </select>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">schedule</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+              </div>
+            </div>
             
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Trạng thái tin</label>
@@ -195,18 +212,33 @@ export default function EditJobForm({ job }: { job: any }) {
                   disabled={isLoading}
                   className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 appearance-none outline-none transition-all"
                 >
-                  <option value="Open">Mở tuyển (Active)</option>
-                  <option value="Draft">Bản nháp (Draft)</option>
-                  <option value="Closed">Đóng tuyển (Closed)</option>
+                  <option value="OPEN">Mở tuyển (Active)</option>
+                  <option value="DRAFT">Bản nháp (Draft)</option>
+                  <option value="CLOSED">Đóng tuyển (Closed)</option>
                 </select>
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">toggle_on</span>
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Hạn nộp hồ sơ</label>
+              <div className="relative">
+                <input 
+                  name="deadline"
+                  defaultValue={formattedDeadline}
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
+                  type="date" 
+                />
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">calendar_today</span>
+              </div>
+            </div>
+
           </div>
         </section>
 
-        {/* Section: Lương */}
+        {/* Section 2: Lương */}
         <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
           <div className="flex items-center gap-3 mb-8">
             <span className="material-symbols-outlined text-secondary bg-secondary-container p-2 rounded-lg">payments</span>
@@ -239,7 +271,7 @@ export default function EditJobForm({ job }: { job: any }) {
           </div>
         </section>
 
-        {/* Section: Chi tiết công việc */}
+        {/* Section 3: Chi tiết công việc */}
         <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
           <div className="flex items-center gap-3 mb-8">
             <span className="material-symbols-outlined text-tertiary bg-tertiary-fixed p-2 rounded-lg">description</span>
@@ -273,16 +305,16 @@ export default function EditJobForm({ job }: { job: any }) {
         </section>
       </div>
 
-      {/* ================= SIDEBAR / META COLUMN ================= */}
+      {/* SIDEBAR / META COLUMN */}
       <aside className="col-span-12 lg:col-span-4 space-y-8">
         
         {/* Summary Card */}
-        <div className={`p-8 rounded-2xl text-white shadow-xl bg-gradient-to-br ${job.status === 'OPEN' || job.status === 'Open' ? 'from-primary-container to-primary' : 'from-slate-500 to-slate-700'}`}>
+        <div className={`p-8 rounded-2xl text-white shadow-xl bg-gradient-to-br ${job.status === 'OPEN' ? 'from-primary-container to-primary' : 'from-slate-500 to-slate-700'}`}>
           <h3 className="text-xl font-headline font-extrabold mb-4">Trạng thái Tin tuyển dụng</h3>
           <div className="flex items-center gap-3 mb-6">
-            {(job.status === 'OPEN' || job.status === 'Open') && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
+            {job.status === 'OPEN' && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
             <span className="font-bold tracking-tight text-lg">
-              {(job.status === 'OPEN' || job.status === 'Open') ? 'Đang mở tuyển (Active)' : job.status === 'Draft' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
+              {job.status === 'OPEN' ? 'Đang mở tuyển (Active)' : job.status === 'DRAFT' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
             </span>
           </div>
           

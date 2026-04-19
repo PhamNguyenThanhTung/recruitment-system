@@ -52,11 +52,15 @@ export default function JobForm() {
     
     const formData = new FormData(event.currentTarget);
     
-    const minSalary = formData.get("salaryMin") as string;
-    const maxSalary = formData.get("salaryMax") as string;
-    const finalSalary = (minSalary && maxSalary) 
-      ? `$${minSalary} - $${maxSalary}` 
-      : (minSalary ? `Từ $${minSalary}` : "Thỏa thuận");
+    const minSalaryStr = formData.get("salaryMin") as string;
+    const maxSalaryStr = formData.get("salaryMax") as string;
+    const finalSalary = (minSalaryStr && maxSalaryStr) 
+      ? `$${minSalaryStr} - $${maxSalaryStr}` 
+      : (minSalaryStr ? `Từ $${minSalaryStr}` : "Thỏa thuận");
+
+    // 🔥 Ép kiểu thành số nguyên (Int) cho Database
+    const parsedMinSalary = minSalaryStr ? parseInt(minSalaryStr, 10) : undefined;
+    const parsedMaxSalary = maxSalaryStr ? parseInt(maxSalaryStr, 10) : undefined;
 
     try {
       const response = await fetch("/api/jobs", {
@@ -66,11 +70,14 @@ export default function JobForm() {
           title: formData.get("title"),
           company: formData.get("company"),
           location: formData.get("location"),
+          jobType: formData.get("jobType"), // 🔥 Bổ sung jobType
           salary: finalSalary,
+          minSalary: parsedMinSalary, // 🔥 Truyền Int xuống DB
+          maxSalary: parsedMaxSalary, // 🔥 Truyền Int xuống DB
           status: formData.get("status"),
           description: formData.get("description"),
-          requirements: formData.get("requirements"), // Đã bổ sung
-          deadline: formData.get("deadline") || undefined, // Đã bổ sung
+          requirements: formData.get("requirements"), 
+          deadline: formData.get("deadline") || undefined, 
           companyLogoUrl: previewLogoUrl || undefined,
         }),
       });
@@ -95,7 +102,7 @@ export default function JobForm() {
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-12 gap-8 max-w-7xl mx-auto">
       
-      {/* ================= HEADER ACTIONS ================= */}
+      {/* HEADER ACTIONS */}
       <div className="col-span-12 flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-4">
         <div>
           <nav className="flex items-center gap-2 text-on-surface-variant mb-2">
@@ -122,7 +129,7 @@ export default function JobForm() {
         </div>
       </div>
 
-      {/* ================= MAIN FORM COLUMN ================= */}
+      {/* MAIN FORM COLUMN */}
       <div className="col-span-12 lg:col-span-8 space-y-8">
         
         {error && (
@@ -178,8 +185,27 @@ export default function JobForm() {
               </div>
             </div>
 
-            
-            
+            {/* 🔥 THÊM LOẠI CÔNG VIỆC Ở ĐÂY */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Loại công việc *</label>
+              <div className="relative">
+                <select 
+                  name="jobType"
+                  required
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 appearance-none transition-all"
+                >
+                  <option value="FULL_TIME">Toàn thời gian (Full-time)</option>
+                  <option value="PART_TIME">Bán thời gian (Part-time)</option>
+                  <option value="CONTRACT">Hợp đồng (Contract)</option>
+                  <option value="FREELANCE">Làm tự do (Freelance)</option>
+                  <option value="INTERNSHIP">Thực tập sinh (Internship)</option>
+                </select>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">schedule</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Trạng thái ban đầu</label>
               <div className="relative">
@@ -193,6 +219,20 @@ export default function JobForm() {
                 </select>
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">toggle_on</span>
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Hạn nộp hồ sơ *</label>
+              <div className="relative">
+                <input 
+                  name="deadline"
+                  required
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
+                  type="date" 
+                />
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">calendar_today</span>
               </div>
             </div>
 
@@ -285,7 +325,7 @@ export default function JobForm() {
         </section>
       </div>
 
-      {/* ================= SIDEBAR / PREVIEW COLUMN ================= */}
+      {/* SIDEBAR / PREVIEW COLUMN */}
       <aside className="col-span-12 lg:col-span-4">
         <div className="bg-primary-container p-8 rounded-2xl text-on-primary sticky top-10 shadow-xl bg-gradient-to-br from-primary-container to-primary">
           <h3 className="text-sm font-bold uppercase tracking-wider mb-6 opacity-80 border-b border-white/20 pb-3">Xem trước bài đăng</h3>

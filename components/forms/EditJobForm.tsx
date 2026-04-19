@@ -15,6 +15,17 @@ export default function EditJobForm({ job }: { job: any }) {
     ? new Date(job.deadline).toISOString().split('T')[0] 
     : "";
 
+  // Tách chuỗi lương cũ (VD: "$500 - $1500") ra thành min và max để fill vào form
+  let defaultMin = "";
+  let defaultMax = "";
+  if (job.salary) {
+    const numbers = job.salary.match(/\d+/g);
+    if (numbers) {
+      defaultMin = numbers[0] || "";
+      defaultMax = numbers[1] || "";
+    }
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
@@ -22,9 +33,16 @@ export default function EditJobForm({ job }: { job: any }) {
 
     const formData = new FormData(event.currentTarget);
     
+    // Khởi tạo lại chuỗi lương từ 2 ô input
+    const minSalary = formData.get("salaryMin") as string;
+    const maxSalary = formData.get("salaryMax") as string;
+    const finalSalary = (minSalary && maxSalary) 
+      ? `$${minSalary} - $${maxSalary}` 
+      : (minSalary ? `Từ $${minSalary}` : "Thỏa thuận");
+
     const data = {
       title: formData.get("title"),
-      salary: formData.get("salary"),
+      salary: finalSalary,
       status: formData.get("status"),
       description: formData.get("description"),
       requirements: formData.get("requirements"),
@@ -207,17 +225,28 @@ export default function EditJobForm({ job }: { job: any }) {
             <span className="material-symbols-outlined text-secondary bg-secondary-container p-2 rounded-lg">payments</span>
             <h2 className="text-2xl font-bold font-headline text-on-surface">Mức lương</h2>
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Khoảng lương / Mức lương</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-outline">$</span>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu ($)</label>
               <input 
-                name="salary"
-                defaultValue={job.salary}
+                name="salaryMin" 
+                type="number"
+                defaultValue={defaultMin}
                 disabled={isLoading}
-                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-10 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
-                type="text" 
-                placeholder="VD: $1000 - $2500 hoặc Thỏa thuận"
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
+                placeholder="VD: 500" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa ($)</label>
+              <input 
+                name="salaryMax" 
+                type="number"
+                defaultValue={defaultMax}
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
+                placeholder="VD: 1500" 
               />
             </div>
           </div>
@@ -261,12 +290,12 @@ export default function EditJobForm({ job }: { job: any }) {
       <aside className="col-span-12 lg:col-span-4 space-y-8">
         
         {/* Summary Card */}
-        <div className={`p-8 rounded-2xl text-white shadow-xl bg-gradient-to-br ${job.status === 'Open' ? 'from-primary-container to-primary' : 'from-slate-500 to-slate-700'}`}>
+        <div className={`p-8 rounded-2xl text-white shadow-xl bg-gradient-to-br ${job.status === 'OPEN' || job.status === 'Open' ? 'from-primary-container to-primary' : 'from-slate-500 to-slate-700'}`}>
           <h3 className="text-xl font-headline font-extrabold mb-4">Trạng thái Tin tuyển dụng</h3>
           <div className="flex items-center gap-3 mb-6">
-            {job.status === 'OPEN' && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
+            {(job.status === 'OPEN' || job.status === 'Open') && <span className="w-3 h-3 bg-secondary-fixed rounded-full animate-pulse"></span>}
             <span className="font-bold tracking-tight text-lg">
-              {job.status === 'OPEN' ? 'Đang mở tuyển (Active)' : job.status === 'Draft' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
+              {(job.status === 'OPEN' || job.status === 'Open') ? 'Đang mở tuyển (Active)' : job.status === 'Draft' ? 'Bản nháp (Draft)' : 'Đã đóng (Closed)'}
             </span>
           </div>
           

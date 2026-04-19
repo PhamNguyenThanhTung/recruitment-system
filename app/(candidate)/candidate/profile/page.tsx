@@ -1,425 +1,404 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import CandidateEditForm from "@/components/forms/CandidateEditForm";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import toast from "react-hot-toast";
 
-const getStatusStyle = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING': return 'bg-amber-50 text-amber-600 border-amber-200';
-    case 'REVIEWING': return 'bg-blue-50 text-blue-600 border-blue-200';
-    case 'INTERVIEWING': return 'bg-purple-50 text-purple-600 border-purple-200';
-    case 'OFFERED': return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-    case 'REJECTED': return 'bg-rose-50 text-rose-600 border-rose-200';
-    default: return 'bg-slate-50 text-slate-500 border-slate-200';
-  }
-};
+// Khởi tạo Cloudinary ở Client Component
+const CldUploadWidget = dynamic(
+  () => import('next-cloudinary').then((mod) => mod.CldUploadWidget),
+  { ssr: false }
+);
 
-const getStatusText = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING': return 'Đang chờ';
-    case 'REVIEWING': return 'Đã xem';
-    case 'INTERVIEWING': return 'Phỏng vấn';
-    case 'OFFERED': return 'Trúng tuyển';
-    case 'REJECTED': return 'Từ chối';
-    default: return status;
-  }
-};
+export default function JobForm() {
+  const router = useRouter();
+  const [error, setError] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
-export default function CandidateProfilePage() {
-  const { data: session, status } = useSession();
-  const router = useRouter(); 
-  
-  const [activeTab, setActiveTab] = useState<'overview' | 'apps' | 'saved' | 'edit'>('overview');
-  const [data, setData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Trạng thái cho Sidebar Preview
+  const [previewTitle, setPreviewTitle] = React.useState("Chức danh công việc");
+  const [previewSalary, setPreviewSalary] = React.useState("Mức lương");
+  const [salaryMinInput, setSalaryMinInput] = React.useState("");
+  const [salaryMaxInput, setSalaryMaxInput] = React.useState("");
+  const [previewLogoUrl, setPreviewLogoUrl] = React.useState("");
+  const [previewCompany, setPreviewCompany] = React.useState("Đang tải...");
+  const [previewLocation, setPreviewLocation] = React.useState("Đang tải...");
 
-  const [liveProfile, setLiveProfile] = useState({
-    address: "",
-    skills: "",
-    bio: "",
-    avatar: ""
-  });
+  const formatVnd = (value: number | undefined | null) => {
+    if (value === undefined || value === null) return "";
+    return `${value.toLocaleString('vi-VN')} VNĐ`;
+  };
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-      return;
-    }
-    
-    const fetchData = async () => {
-      try {
-        const [profileRes, appRes, recRes, savedRes] = await Promise.all([
-          fetch("/api/profile/candidate"),
-          fetch("/api/applications/my"), 
-          fetch("/api/jobs?limit=10"),
-          fetch("/api/saved-jobs")
-        ]);
-        
-        const profile = await profileRes.json();
-        const appsRaw = await appRes.json();
-        const recJobsRaw = await recRes.json();
-        const savedRaw = await savedRes.json(); 
+  const formatVndInput = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    return digits ? Number(digits).toLocaleString('vi-VN') : "";
+  };
 
-        const allJobs = recJobsRaw.success ? recJobsRaw.data : [];
-        const myApps = Array.isArray(appsRaw) ? appsRaw : (appsRaw.data || []);
-        const mySavedJobs = Array.isArray(savedRaw) ? savedRaw : []; 
+  const parseVndInput = (value: string | null | undefined) => {
+    if (!value) return undefined;
+    const digits = value.replace(/\D/g, "");
+    return digits ? parseInt(digits, 10) : undefined;
+  };
 
-        const recommendedJobs = allJobs
-          .filter((job: any) => !myApps.some((app: any) => app.jobId === job.id))
-          .slice(0, 2);
-        
-        setData({ profile, applications: myApps, recommendedJobs, savedJobs: mySavedJobs });
-        
-        setLiveProfile({
-          address: profile?.address || "",
-          skills: profile?.skills || "",
-          bio: profile?.bio || "",
-          avatar: session?.user?.image || ""
-        });
-      } catch (err) {
-        console.error("Lỗi fetch data", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const buildPreviewSalary = (min?: number, max?: number) => {
+    if (min !== undefined && max !== undefined) {
+      return `${formatVnd(min)} - ${formatVnd(max)}`;
+    }
+    if (min !== undefined) {
+      return `Từ ${formatVnd(min)}`;
+    }
+    if (max !== undefined) {
+      return `Tối đa ${formatVnd(max)}`;
+    }
+    return "Mức lương";
+  };
 
-    if (session?.user) fetchData();
-  }, [session, status, router]); 
+  React.useEffect(() => {
+    setIsMounted(true);
+    async function fetchCompanyProfile() {
+      try {
+        const res = await fetch('/api/profile/company');
+        if (res.ok) {
+          const profile = await res.json();
+          if (profile) {
+            setPreviewCompany(profile.companyName || "");
+            setPreviewLocation(profile.address || "");
+            if(profile.logoUrl) setPreviewLogoUrl(profile.logoUrl);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Lỗi lấy thông tin công ty:", error);
+      }
+    }
+    fetchCompanyProfile();
+  }, []);
 
-  // 🔥 HÀM XỬ LÝ XÓA VIỆC LÀM ĐÃ LƯU
-  const handleRemoveSavedJob = async (jobId: string) => {
-    try {
-      const res = await fetch('/api/saved-jobs', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId }),
-      });
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
+    const formData = new FormData(event.currentTarget);
+    
+    const salaryMinStr = formData.get("salaryMin") as string;
+    const salaryMaxStr = formData.get("salaryMax") as string;
+    const parsedMinSalary = parseVndInput(salaryMinStr);
+    const parsedMaxSalary = parseVndInput(salaryMaxStr);
+    const finalSalary = (parsedMinSalary !== undefined && parsedMaxSalary !== undefined)
+      ? `${formatVnd(parsedMinSalary)} - ${formatVnd(parsedMaxSalary)}`
+      : (parsedMinSalary !== undefined ? `Từ ${formatVnd(parsedMinSalary)}` : (parsedMaxSalary !== undefined ? `Tối đa ${formatVnd(parsedMaxSalary)}` : "Thỏa thuận"));
 
-      if (res.ok) {
-        // Cập nhật lại state trực tiếp để UI mất luôn item đó không cần F5
-        setData((prev: any) => ({
-          ...prev,
-          savedJobs: prev.savedJobs.filter((item: any) => item.jobId !== jobId)
-        }));
-      } else {
-        alert("Có lỗi xảy ra khi xóa!");
-      }
-    } catch (error) {
-      console.error("Lỗi xóa job", error);
-    }
-  };
+    // 🔥 Ép kiểu thành số nguyên (Int) cho Database
+    // Lưu ý: input đã được format VNĐ, parseVndInput sẽ loại bỏ dấu chấm trước khi parse
 
-  if (isLoading || !data) return <div className="pt-32 text-center font-bold">Đang đồng bộ dữ liệu Blue Ocean...</div>;
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.get("title"),
+          company: formData.get("company"),
+          location: formData.get("location"),
+          jobType: formData.get("jobType"), // 🔥 Bổ sung jobType
+          salary: finalSalary,
+          minSalary: parsedMinSalary, // 🔥 Truyền Int xuống DB
+          maxSalary: parsedMaxSalary, // 🔥 Truyền Int xuống DB
+          status: formData.get("status"),
+          description: formData.get("description"),
+          requirements: formData.get("requirements"), 
+          deadline: formData.get("deadline") || undefined, 
+          companyLogoUrl: previewLogoUrl || undefined,
+        }),
+      });
 
-  const { profile, applications, recommendedJobs, savedJobs = [] } = data; 
+      if (response.ok) {
+        toast.success("Tạo tin tuyển dụng thành công!");
+        router.push("/admin-jobs");
+        router.refresh();
+      } else {
+        const result = await response.json();
+        setError(result.message || "Lỗi khi tạo tin");
+      }
+    } catch (err) {
+      setError("Đã có lỗi xảy ra");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-  // 🔥 CẬP NHẬT MỚI: Thêm Education và Experience vào tiêu chí đánh giá
-  const completionCriteria = [
-    { label: "Ảnh đại diện", isDone: !!liveProfile.avatar },
-    { label: "Địa chỉ liên hệ", isDone: !!liveProfile.address },
-    { label: "Kỹ năng chuyên môn", isDone: !!liveProfile.skills },
-    { label: "Kinh nghiệm làm việc", isDone: !!profile?.experience }, // Dữ liệu từ DB
-    { label: "Học vấn", isDone: !!profile?.education },           // Dữ liệu từ DB
-    { label: "Hồ sơ CV (PDF)", isDone: !!profile?.defaultCvUrl },
-  ];
+  if (!isMounted) return null;
 
-  // Vì giờ có 6 tiêu chí, nên mỗi tiêu chí hoàn thành sẽ được: 100 / 6 = 16.66%
-  // Dùng Math.round để làm tròn thành số nguyên đẹp (VD: 17%, 33%, 50%, 67%, 83%, 100%)
-  const profileCompletion = Math.round(
-    (completionCriteria.filter(c => c.isDone).length / completionCriteria.length) * 100
-  );
+  return (
+    <form onSubmit={onSubmit} className="grid grid-cols-12 gap-8 max-w-7xl mx-auto">
+      
+      {/* HEADER ACTIONS */}
+      <div className="col-span-12 flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-4">
+        <div>
+          <nav className="flex items-center gap-2 text-on-surface-variant mb-2">
+            <span className="text-xs font-semibold tracking-wider uppercase font-label">Jobs</span>
+            <span className="material-symbols-outlined text-sm">chevron_right</span>
+            <span className="text-xs font-semibold tracking-wider uppercase font-label text-primary">Tạo mới</span>
+          </nav>
+          <h1 className="text-3xl md:text-4xl font-extrabold font-headline tracking-tight text-on-surface">
+            Tạo tin tuyển dụng mới
+          </h1>
+          <p className="text-on-surface-variant mt-1 text-sm">Tiếp cận ứng viên tiềm năng trên hệ thống của bạn.</p>
+        </div>
+        
+        <div className="flex gap-4 shrink-0">
+          <Link href="/admin-jobs">
+            <button type="button" disabled={isLoading} className="px-6 py-3 rounded-xl font-bold text-on-surface-variant hover:bg-surface-container-high transition-all">
+              Hủy bỏ
+            </button>
+          </Link>
+          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all flex items-center gap-2">
+            {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : null}
+            Đăng tin ngay
+          </button>
+        </div>
+      </div>
 
-  return (
-    <main className="max-w-[1600px] mx-auto pb-20 px-6">
-      <div className="h-28 w-full" />
+      {/* MAIN FORM COLUMN */}
+      <div className="col-span-12 lg:col-span-8 space-y-8">
+        
+        {error && (
+          <div className="p-4 bg-error-container text-on-error-container rounded-xl text-sm font-bold flex items-center gap-3">
+            <span className="material-symbols-outlined">error</span>
+            {error}
+          </div>
+        )}
 
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl md:text-5xl font-black headline-font text-on-surface tracking-tight mb-2">
-            Chào buổi sáng, {session?.user?.name?.split(' ')[0]}!
-          </h1>
-          <p className="text-on-surface-variant text-lg italic text-slate-500 font-medium">
-            {activeTab === 'edit' ? "Cập nhật thông tin cá nhân." : 
-             activeTab === 'apps' ? "Quản lý các đơn ứng tuyển của bạn." : 
-             activeTab === 'saved' ? "Xem lại các công việc bạn đã quan tâm." : 
-             "Hệ thống đã sẵn sàng cho ngày mới."}
-          </p>
-        </div>
-        {activeTab === 'overview' && (
-          <Link href="/">
-            <button className="px-8 py-3.5 bg-primary text-white rounded-2xl font-black text-sm shadow-lg hover:scale-105 transition-all flex items-center gap-2">
-              <span className="material-symbols-outlined">search</span> Tìm việc ngay
-            </button>
-          </Link>
-        )}
-      </header>
+        {/* Section 1: Thông tin cơ bản */}
+        <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-primary bg-primary-fixed p-2 rounded-lg">work</span>
+            <h2 className="text-2xl font-bold font-headline text-on-surface">Thông tin cơ bản</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Chức danh công việc *</label>
+              <input 
+                name="title"
+                required
+                onChange={(e) => setPreviewTitle(e.target.value)}
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
+                placeholder="VD: Senior React Developer"
+              />
+            </div>
+            
+            <div className="space-y-2 border-t md:border-none pt-4 md:pt-0 border-outline-variant/10">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Công ty</label>
+              <div className="relative">
+                <input 
+                  name="company"
+                  value={previewCompany}
+                  readOnly
+                  className="w-full bg-surface-container-low/50 border-0 rounded-xl p-4 pl-12 text-on-surface-variant font-medium outline-variant/15 outline outline-1 cursor-not-allowed" 
+                />
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">corporate_fare</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2 border-t md:border-none pt-4 md:pt-0 border-outline-variant/10">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Địa điểm</label>
+              <div className="relative">
+                <input 
+                  name="location"
+                  value={previewLocation}
+                  readOnly
+                  className="w-full bg-surface-container-low/50 border-0 rounded-xl p-4 pl-12 text-on-surface-variant font-medium outline-variant/15 outline outline-1 cursor-not-allowed" 
+                />
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">location_on</span>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-12 gap-8">
-        
-        {/* LEFT SIDEBAR */}
-        <aside className="col-span-12 lg:col-span-3 space-y-6">
-          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-outline-variant/10 text-center relative overflow-hidden">
-            <div className="w-24 h-24 rounded-full border-4 border-secondary-container p-1 mx-auto mb-4 overflow-hidden">
-               {liveProfile.avatar ? (
-                 <img src={liveProfile.avatar} className="w-full h-full object-cover rounded-full" alt="avatar" />
-               ) : (
-                 <div className="w-full h-full bg-primary text-white flex items-center justify-center text-3xl font-black rounded-full">
-                   {session?.user?.name?.charAt(0)}
-                 </div>
-               )}
-            </div>
-            <h3 className="headline-font font-black text-xl text-on-surface">{session?.user?.name}</h3>
-            <p className="text-[10px] font-black uppercase text-primary mt-2 tracking-widest leading-relaxed">
-              {liveProfile.address || "Vị trí chưa cập nhật"}
-            </p>
-            
-            <nav className="mt-8 space-y-2 text-left">
-              <button 
-                onClick={() => setActiveTab('overview')}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'overview' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                <span className="material-symbols-outlined">grid_view</span> Tổng quan
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('apps')}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'apps' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                <span className="material-symbols-outlined">assignment_turned_in</span> Đơn ứng tuyển
-              </button>
+            {/* 🔥 THÊM LOẠI CÔNG VIỆC Ở ĐÂY */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Loại công việc *</label>
+              <div className="relative">
+                <select 
+                  name="jobType"
+                  required
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 appearance-none transition-all"
+                >
+                  <option value="FULL_TIME">Toàn thời gian (Full-time)</option>
+                  <option value="PART_TIME">Bán thời gian (Part-time)</option>
+                  <option value="CONTRACT">Hợp đồng (Contract)</option>
+                  <option value="FREELANCE">Làm tự do (Freelance)</option>
+                  <option value="INTERNSHIP">Thực tập sinh (Internship)</option>
+                </select>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">schedule</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+              </div>
+            </div>
 
-              <button 
-                onClick={() => setActiveTab('saved')}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'saved' ? 'bg-red-50 text-red-500' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                <span className="material-symbols-outlined">favorite</span> Việc làm đã lưu
-              </button>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Trạng thái ban đầu</label>
+              <div className="relative">
+                <select 
+                  name="status"
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 appearance-none transition-all"
+                >
+                  <option value="OPEN">Mở tuyển ngay (Active)</option>
+                  <option value="DRAFT">Lưu bản nháp (Draft)</option>
+                </select>
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">toggle_on</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+              </div>
+            </div>
 
-              <button 
-                onClick={() => setActiveTab('edit')}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all font-bold ${activeTab === 'edit' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                <span className="material-symbols-outlined">person</span> Hồ sơ cá nhân
-              </button>
-            </nav>
-          </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Hạn nộp hồ sơ *</label>
+              <div className="relative">
+                <input 
+                  name="deadline"
+                  required
+                  disabled={isLoading}
+                  className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 pl-12 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
+                  type="date" 
+                />
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">calendar_today</span>
+              </div>
+            </div>
 
-          <div className="bg-white p-8 rounded-[32px] border border-outline-variant/5 shadow-sm">
-            <h4 className="headline-font font-black text-[10px] uppercase text-slate-400 mb-4 tracking-widest">Hoàn thiện {profileCompletion}%</h4>
-            <div className="w-full bg-slate-100 rounded-full h-2 mb-6 overflow-hidden">
-              <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${profileCompletion}%` }} />
-            </div>
-            <div className="space-y-3">
-              {completionCriteria.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-[11px] font-bold">
-                  <span className={`material-symbols-outlined text-sm ${item.isDone ? 'text-emerald-500' : 'text-slate-200'}`}>
-                    {item.isDone ? 'check_circle' : 'radio_button_unchecked'}
-                  </span>
-                  <span className={item.isDone ? 'text-slate-600' : 'text-slate-400'}>{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
+            <div className="md:col-span-2 space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Cập nhật Logo Công Ty (Tùy chọn)</label>
+              <CldUploadWidget 
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+                onSuccess={(result: any) => setPreviewLogoUrl(result.info.secure_url)}
+              >
+                {({ open }) => (
+                  <button type="button" onClick={() => open()} className="w-full border-2 border-dashed border-outline-variant/30 rounded-xl py-6 flex flex-col items-center justify-center hover:border-primary/50 hover:bg-primary/5 transition-all">
+                    <span className="material-symbols-outlined text-3xl mb-2 text-primary">cloud_upload</span>
+                    <span className="font-bold text-sm text-on-surface-variant">Nhấn để tải ảnh lên</span>
+                  </button>
+                )}
+              </CldUploadWidget>
+            </div>
+          </div>
+        </section>
 
-        {/* MAIN CONTENT AREA */}
-        <section className="col-span-12 lg:col-span-6 space-y-8">
-          {activeTab === 'edit' ? (
-            <div className="bg-white p-2 rounded-[40px] shadow-sm border border-slate-100">
-               <CandidateEditForm 
-                 initialData={data.profile} 
-                 user={session?.user} 
-                 onProfileUpdate={(newData: any) => setLiveProfile(prev => ({...prev, ...newData}))}
-               />
-            </div>
-          ) : activeTab === 'apps' ? (
-            <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden">
-                <div className="p-8 border-b border-slate-50">
-                  <h3 className="font-black text-2xl">Tất cả đơn ứng tuyển</h3>
-                  <p className="text-slate-400 text-sm mt-1 font-medium">Bạn đã nộp tổng cộng {applications.length} đơn.</p>
-                </div>
-                <div className="divide-y divide-slate-50 text-sm">
-                  {applications.length > 0 ? applications.map((app: any) => (
-                    <div key={app.id} className="p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-primary font-black text-2xl shadow-inner">{app.job.title.charAt(0)}</div>
-                        <div>
-                          <h4 className="font-black text-on-surface text-lg">{app.job.title}</h4>
-                          <p className="text-sm text-slate-400 font-bold uppercase tracking-tight">{app.job.company}</p>
-                          <p className="text-xs text-slate-300 mt-1 italic">Ngày nộp: {new Date(app.appliedAt).toLocaleDateString('vi-VN')}</p>
-                        </div>
-                      </div>
-                      <span className={`px-5 py-2 text-[11px] font-black uppercase rounded-2xl border ${getStatusStyle(app.status)} shadow-sm`}>
-                        {getStatusText(app.status)}
-                      </span>
-                    </div>
-                  )) : (
-                    <div className="p-20 text-center text-slate-300 font-bold italic">Chưa có dữ liệu ứng tuyển nào.</div>
-                  )}
-                </div>
-            </div>
-          ) : activeTab === 'saved' ? (
-            <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden">
-                <div className="p-8 border-b border-slate-50">
-                  <h3 className="font-black text-2xl flex items-center gap-2 text-on-surface">
-                    <span className="material-symbols-outlined text-red-500 text-3xl">favorite</span> Việc làm đã lưu
-                  </h3>
-                  <p className="text-slate-400 text-sm mt-1 font-medium">Bạn đang lưu trữ {savedJobs.length} công việc.</p>
-                </div>
-                <div className="divide-y divide-slate-50 text-sm">
-                  {savedJobs.length > 0 ? savedJobs.map((item: any) => (
-                    <div key={item.id} className="p-8 flex items-center justify-between hover:bg-red-50/30 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 font-black text-2xl shadow-inner">{item.job.title.charAt(0)}</div>
-                        <div>
-                          <Link href={`/jobs/${item.job.id}`}>
-                            <h4 className="font-black text-on-surface text-lg hover:text-red-500 transition-colors">{item.job.title}</h4>
-                          </Link>
-                          <p className="text-sm text-slate-400 font-bold uppercase tracking-tight">{item.job.company}</p>
-                          <p className="text-xs text-slate-300 mt-1 italic">Lưu ngày: {new Date(item.createdAt).toLocaleDateString('vi-VN')}</p>
-                        </div>
-                      </div>
-                      
-                      {/* 🔥 NÚT ACTION MỚI CÓ NÚT XÓA Ở ĐÂY */}
-                      <div className="flex items-center gap-2">
-                        <Link href={`/jobs/${item.job.id}`}>
-                          <button className="px-5 py-2.5 bg-white text-primary text-[11px] font-black uppercase rounded-xl hover:bg-primary/10 transition-all shadow-sm border border-outline-variant/20">
-                            Chi tiết
-                          </button>
-                        </Link>
-                        <button 
-                          onClick={() => handleRemoveSavedJob(item.job.id)}
-                          className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100"
-                          title="Bỏ lưu"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                        </button>
-                      </div>
+        {/* Section 2: Lương */}
+        <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-secondary bg-secondary-container p-2 rounded-lg">payments</span>
+            <h2 className="text-2xl font-bold font-headline text-on-surface">Mức lương</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu (VNĐ)</label>
+              <input 
+                name="salaryMin" 
+                type="text"
+                value={salaryMinInput}
+                onChange={(e) => {
+                  const formatted = formatVndInput(e.target.value);
+                  setSalaryMinInput(formatted);
+                  const min = parseVndInput(formatted);
+                  const max = parseVndInput(salaryMaxInput);
+                  setPreviewSalary(buildPreviewSalary(min, max));
+                }}
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
+                placeholder="VD: 10.000.000" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa (VNĐ)</label>
+              <input 
+                name="salaryMax" 
+                type="text"
+                value={salaryMaxInput}
+                onChange={(e) => {
+                  const formatted = formatVndInput(e.target.value);
+                  setSalaryMaxInput(formatted);
+                  const min = parseVndInput(salaryMinInput);
+                  const max = parseVndInput(formatted);
+                  setPreviewSalary(buildPreviewSalary(min, max));
+                }}
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 transition-all" 
+                placeholder="VD: 10.000.000 - 25.000.000 VNĐ" 
+              />
+            </div>
+          </div>
+        </section>
 
-                    </div>
-                  )) : (
-                    <div className="p-20 text-center text-slate-300 font-bold italic">
-                      <span className="material-symbols-outlined text-6xl text-slate-200 block mb-4">heart_broken</span>
-                      Bạn chưa lưu công việc nào.
-                    </div>
-                  )}
-                </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white p-6 rounded-3xl border-l-4 border-primary shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã nộp</p>
-                  <h2 className="text-3xl font-black text-primary">{applications.length}</h2>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border-l-4 border-red-400 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Đã lưu</p>
-                  <h2 className="text-3xl font-black text-red-500">{savedJobs.length}</h2>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border-l-4 border-emerald-500 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Phỏng vấn</p>
-                  <h2 className="text-3xl font-black text-emerald-600">00</h2>
-                </div>
-              </div>
+        {/* Section 3: Chi tiết công việc */}
+        <section className="bg-surface-container-lowest p-6 md:p-8 rounded-xl shadow-[0px_10px_40px_rgba(0,89,187,0.06)] border border-outline-variant/10">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-tertiary bg-tertiary-fixed p-2 rounded-lg">description</span>
+            <h2 className="text-2xl font-bold font-headline text-on-surface">Chi tiết công việc</h2>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Mô tả công việc *</label>
+              <textarea 
+                name="description"
+                required
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-6 text-on-surface font-medium outline-variant/15 outline outline-1 min-h-[200px] transition-all resize-y leading-relaxed"
+                placeholder="Nhập mô tả chi tiết công việc..."
+              ></textarea>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Yêu cầu ứng viên *</label>
+              <textarea 
+                name="requirements"
+                required
+                disabled={isLoading}
+                className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-6 text-on-surface font-medium outline-variant/15 outline outline-1 min-h-[150px] transition-all resize-y leading-relaxed"
+                placeholder="Nhập yêu cầu về kỹ năng, kinh nghiệm..."
+              ></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
 
-              <div className="bg-white rounded-[40px] shadow-sm border border-outline-variant/10 overflow-hidden text-sm">
-                <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-                  <h3 className="font-black text-xl">Đơn ứng tuyển gần đây</h3>
-                  <button 
-                    onClick={() => setActiveTab('apps')} 
-                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
-                  >
-                    Xem tất cả
-                  </button>
-                </div>
-                <div className="divide-y divide-slate-50">
-                  {applications.slice(0, 3).length > 0 ? applications.slice(0, 3).map((app: any) => (
-                    <div key={app.id} className="p-8 flex items-center justify-between hover:bg-slate-50 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-primary font-black text-2xl">{app.job.title.charAt(0)}</div>
-                        <div>
-                          <h4 className="font-black text-on-surface">{app.job.title}</h4>
-                          <p className="text-xs text-slate-400 uppercase font-bold">{app.job.company}</p>
-                        </div>
-                      </div>
-                      <span className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-xl border ${getStatusStyle(app.status)}`}>
-                        {getStatusText(app.status)}
-                      </span>
-                    </div>
-                  )) : (
-                    <p className="p-10 text-center text-slate-300 font-bold italic">Chưa có đơn ứng tuyển.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-6 pt-4 text-sm">
-                <h3 className="headline-font font-black text-xl px-2">Gợi ý việc làm dành cho bạn</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {recommendedJobs?.map((job: any, idx: number) => (
-                    <div key={job.id} className={`${idx === 0 ? 'bg-primary text-white shadow-blue-200' : 'bg-white border border-slate-100'} p-8 rounded-[40px] shadow-xl relative overflow-hidden group transition-all hover:scale-[1.02]`}>
-                      <div className="relative z-10">
-                        <span className={`${idx === 0 ? 'bg-white/20' : 'bg-primary/10 text-primary'} px-3 py-1 rounded-lg text-[9px] font-black uppercase mb-4 inline-block`}>HOT JOB</span>
-                        <h4 className="text-xl font-black headline-font mb-1 line-clamp-1">{job.title}</h4>
-                        <p className={`${idx === 0 ? 'text-white/70' : 'text-slate-400'} text-xs font-bold mb-8 uppercase`}>{job.company}</p>
-                        <div className="flex justify-between items-center">
-                          <span className="text-lg font-black">{job.salary || "Thỏa thuận"}</span>
-                          <Link href={`/jobs/${job.id}`}>
-                            <button className={`${idx === 0 ? 'bg-white text-primary' : 'bg-primary text-white'} px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-sm active:scale-95 transition-all`}>Chi tiết</button>
-                          </Link>
-                        </div>
-                      </div>
-                      {idx === 0 && <span className="absolute -right-6 -bottom-6 material-symbols-outlined text-[140px] opacity-10 rotate-12">auto_awesome</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </section>
-
-        {/* RIGHT SIDEBAR GIỮ NGUYÊN */}
-        <aside className="col-span-12 lg:col-span-3 space-y-8">
-          <div className="bg-white p-8 rounded-[40px] shadow-sm border border-outline-variant/10">
-            <h3 className="text-lg font-black mb-8 flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary">calendar_month</span> Lịch trình
-            </h3>
-            <div className="relative pl-6 border-l-2 border-slate-100 pb-4">
-              <div className="relative">
-                <div className="absolute -left-[33px] top-0 w-4 h-4 rounded-full bg-secondary border-4 border-white shadow-md"></div>
-                <p className="text-[10px] font-black text-secondary uppercase tracking-widest mb-1">Cập nhật lúc {new Date().getHours()}:00</p>
-                <h4 className="font-bold text-sm">Đang đồng bộ...</h4>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">Lịch phỏng vấn sẽ hiển thị ở đây.</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-8 rounded-[40px] shadow-sm border border-outline-variant/10">
-            <h3 className="text-lg font-black mb-8 flex items-center gap-3">
-              <span className="material-symbols-outlined text-blue-600">notifications_active</span> Thông báo
-            </h3>
-            <div className="space-y-6 text-sm">
-              {applications.slice(0, 2).map((app: any) => (
-                <div key={app.id} className="flex gap-4 items-start border-b border-slate-50 pb-4 last:border-0 group">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                    <span className="material-symbols-outlined text-sm">info</span>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-700 leading-tight italic">
-                       Đơn <span className="text-blue-600">{app.job.title}</span> đã chuyển trạng thái.
-                    </p>
-                    <p className="text-[9px] font-black text-slate-300 mt-2 tracking-widest">HỆ THỐNG</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-      </div>
-    </main>
-  );
+      {/* SIDEBAR / PREVIEW COLUMN */}
+      <aside className="col-span-12 lg:col-span-4">
+        <div className="bg-primary-container p-8 rounded-2xl text-on-primary sticky top-10 shadow-xl bg-gradient-to-br from-primary-container to-primary">
+          <h3 className="text-sm font-bold uppercase tracking-wider mb-6 opacity-80 border-b border-white/20 pb-3">Xem trước bài đăng</h3>
+          
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-md">
+              {previewLogoUrl ? (
+                <img src={previewLogoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <span className="text-primary font-black text-3xl">{previewCompany.charAt(0)}</span>
+              )}
+            </div>
+            <h3 className="text-2xl font-black font-headline tracking-tight leading-tight">
+              {previewTitle || "Tên công việc"}
+            </h3>
+          </div>
+          
+          <div className="space-y-2 mb-8">
+            <p className="flex items-center gap-2 text-sm font-medium opacity-90">
+              <span className="material-symbols-outlined text-[18px]">corporate_fare</span>
+              {previewCompany || "Tên công ty"}
+            </p>
+            <p className="flex items-center gap-2 text-sm font-medium opacity-90">
+              <span className="material-symbols-outlined text-[18px]">location_on</span>
+              {previewLocation || "Địa điểm làm việc"}
+            </p>
+          </div>
+          
+          <div className="inline-block bg-white/20 px-4 py-2 rounded-xl text-sm font-bold border border-white/10 backdrop-blur-sm">
+            {previewSalary}
+          </div>
+        </div>
+      </aside>
+    </form>
+  );
 }

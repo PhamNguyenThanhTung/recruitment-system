@@ -2,14 +2,18 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
-import { JobStatus } from "@prisma/client";
+// 🔥 Bổ sung import JobType từ Prisma
+import { JobStatus, JobType } from "@prisma/client";
 
-
+// 🔥 Bổ sung jobType vào Zod Schema để API cho phép cập nhật
 const updateJobSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   requirements: z.string().optional(),
+  jobType: z.nativeEnum(JobType).optional(), // Bổ sung trường này
   salary: z.string().optional(),
+  minSalary: z.number().int().min(0).nullable().optional(),
+  maxSalary: z.number().int().min(0).nullable().optional(),
   deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
   status: z.nativeEnum(JobStatus).optional(),
 });
@@ -17,10 +21,10 @@ const updateJobSchema = z.object({
 // --- GET: Lấy chi tiết Job + Profile Công ty ---
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> } // 🔥 FIX: Đổi thành Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params; // 🔥 FIX: Phải có await
+    const { id } = await params;
     const job = await db.job.findUnique({
       where: { id },
       include: {
@@ -59,6 +63,8 @@ export async function PUT(
     if (job.userId !== session.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json();
+    
+    // Zod sẽ quét body ở đây, giờ đã có jobType nên nó sẽ cho qua an toàn
     const validatedData = updateJobSchema.parse(body);
 
     const updatedJob = await db.job.update({

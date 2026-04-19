@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ApplicationStatus, JobStatus } from '@prisma/client';
+// 🔥 1. IMPORT THÊM JobType
+import { ApplicationStatus, JobStatus, JobType } from '@prisma/client';
 
 /**
  * Schema xác thực đăng ký tài khoản (HR)
@@ -35,7 +36,16 @@ export const jobSchema = z.object({
   company: z.string().optional(), // ✅ THÀNH OPTIONAL - backend sẽ tự động lấy từ CompanyProfile
   description: z.string().min(10, 'Mô tả phải có ít nhất 10 ký tự'),
   requirements: z.string().optional(),
+  
+  // 🔥 2. BỔ SUNG TRƯỜNG LOẠI CÔNG VIỆC VÀO ĐÂY
+  jobType: z.nativeEnum(JobType).optional(), 
+  
   salary: z.string().optional(),
+  
+  // 🔥 3. THÊM nullable() ĐỂ KHÔNG BỊ LỖI KHI FRONTEND GỬI NULL
+  minSalary: z.number().int().min(0).nullable().optional(), 
+  maxSalary: z.number().int().min(0).nullable().optional(), 
+  
   location: z.string().optional(), // ✅ THÀNH OPTIONAL - backend sẽ tự động lấy từ CompanyProfile
   deadline: z.string().optional().transform((val) => val ? new Date(val) : undefined),
   status: z.nativeEnum(JobStatus).default(JobStatus.DRAFT),

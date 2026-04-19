@@ -14,10 +14,24 @@ export default function EditJobForm({ job }: { job: any }) {
     ? new Date(job.deadline).toISOString().split('T')[0] 
     : "";
 
-  let defaultMin = "";
-  let defaultMax = "";
-  if (job.minSalary) defaultMin = job.minSalary.toString();
-  if (job.maxSalary) defaultMax = job.maxSalary.toString();
+  const [salaryMinInput, setSalaryMinInput] = React.useState(job.minSalary ? job.minSalary.toLocaleString('vi-VN') : "");
+  const [salaryMaxInput, setSalaryMaxInput] = React.useState(job.maxSalary ? job.maxSalary.toLocaleString('vi-VN') : "");
+
+  const formatVnd = (value: number | undefined | null) => {
+    if (value === undefined || value === null) return "";
+    return `${value.toLocaleString('vi-VN')} VNĐ`;
+  };
+
+  const formatVndInput = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    return digits ? Number(digits).toLocaleString('vi-VN') : "";
+  };
+
+  const parseVndInput = (value: string | null | undefined) => {
+    if (!value) return null;
+    const digits = value.replace(/\D/g, "");
+    return digits ? parseInt(digits, 10) : null;
+  };
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,15 +40,13 @@ export default function EditJobForm({ job }: { job: any }) {
 
     const formData = new FormData(event.currentTarget);
     
-    const minSalaryStr = formData.get("salaryMin") as string;
-    const maxSalaryStr = formData.get("salaryMax") as string;
-    const finalSalary = (minSalaryStr && maxSalaryStr) 
-      ? `$${minSalaryStr} - $${maxSalaryStr}` 
-      : (minSalaryStr ? `Từ $${minSalaryStr}` : "Thỏa thuận");
-
-    // 🔥 Ép kiểu thành số nguyên cho Database
-    const parsedMinSalary = minSalaryStr ? parseInt(minSalaryStr, 10) : null;
-    const parsedMaxSalary = maxSalaryStr ? parseInt(maxSalaryStr, 10) : null;
+    const salaryMinStr = formData.get("salaryMin") as string;
+    const salaryMaxStr = formData.get("salaryMax") as string;
+    const parsedMinSalary = parseVndInput(salaryMinStr);
+    const parsedMaxSalary = parseVndInput(salaryMaxStr);
+    const finalSalary = (parsedMinSalary !== null && parsedMaxSalary !== null)
+      ? `${formatVnd(parsedMinSalary)} - ${formatVnd(parsedMaxSalary)}`
+      : (parsedMinSalary !== null ? `Từ ${formatVnd(parsedMinSalary)}` : (parsedMaxSalary !== null ? `Tối đa ${formatVnd(parsedMaxSalary)}` : "Thỏa thuận"));
 
     const data = {
       title: formData.get("title"),
@@ -118,7 +130,7 @@ export default function EditJobForm({ job }: { job: any }) {
               Hủy bỏ
             </button>
           </Link>
-          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all flex items-center gap-2">
+          <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:translate-y-[-2px] transition-all active:scale-95 disabled:opacity-70 flex items-center gap-2">
             {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : null}
             Lưu thay đổi
           </button>
@@ -181,7 +193,7 @@ export default function EditJobForm({ job }: { job: any }) {
               </div>
             </div>
 
-            {/* 🔥 THÊM LOẠI CÔNG VIỆC Ở ĐÂY ĐỂ ĐỒNG BỘ VỚI DB VÀ CREATE FORM */}
+            {/* 🔥 ĐÃ KHÔI PHỤC LẠI TRƯỜNG LOẠI CÔNG VIỆC Ở ĐÂY 🔥 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Loại công việc *</label>
               <div className="relative">
@@ -202,7 +214,7 @@ export default function EditJobForm({ job }: { job: any }) {
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Trạng thái tin</label>
               <div className="relative">
@@ -247,25 +259,27 @@ export default function EditJobForm({ job }: { job: any }) {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu ($)</label>
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu (VNĐ)</label>
               <input 
                 name="salaryMin" 
-                type="number"
-                defaultValue={defaultMin}
+                type="text"
+                value={salaryMinInput}
+                onChange={(e) => setSalaryMinInput(formatVndInput(e.target.value))}
                 disabled={isLoading}
                 className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
-                placeholder="VD: 500" 
+                placeholder="VD: 10.000.000" 
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa ($)</label>
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa (VNĐ)</label>
               <input 
                 name="salaryMax" 
-                type="number"
-                defaultValue={defaultMax}
+                type="text"
+                value={salaryMaxInput}
+                onChange={(e) => setSalaryMaxInput(formatVndInput(e.target.value))}
                 disabled={isLoading}
                 className="w-full bg-surface-container-low border-0 focus:ring-2 focus:ring-primary rounded-xl p-4 text-on-surface font-medium outline-variant/15 outline outline-1 outline-none transition-all" 
-                placeholder="VD: 1500" 
+                placeholder="VD: 25.000.000" 
               />
             </div>
           </div>

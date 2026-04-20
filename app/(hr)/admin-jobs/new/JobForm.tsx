@@ -262,7 +262,7 @@ export default function JobForm() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu ($)</label>
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối thiểu (VND)</label>
               <input 
                 name="salaryMin" 
                 type="number"
@@ -276,7 +276,7 @@ export default function JobForm() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa ($)</label>
+              <label className="block text-sm font-semibold text-on-surface-variant font-label uppercase tracking-wider">Lương tối đa (VND)</label>
               <input 
                 name="salaryMax" 
                 type="number"
